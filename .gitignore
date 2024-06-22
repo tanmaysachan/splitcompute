@@ -1,0 +1,6 @@
+webgpu-torch/dist
+webgpu-torch/node_modules
+webgpu-torch/.github
+webgpu-torch/.vscode
+
+test/.DS_Store
