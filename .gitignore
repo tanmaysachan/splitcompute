@@ -4,4 +4,4 @@ webgpu-torch/.github
 webgpu-torch/.vscode
 
 test/.DS_Store
-test/sample_website/ml-assets/GPT2
+test/sample-website/ml-assets/GPT2
