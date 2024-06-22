@@ -1,0 +1,12 @@
+
+nav .nav-item {
+    display: inline-block;
+    padding: 1em 2em;
+    font-size: larger;
+    background-color: rgba(128, 128, 128, 0.5);
+    border-radius: 0.5em;
+    cursor: pointer;
+}
+nav .nav-item:hover {
+    background-color: rgba(128, 128, 128, 0.75);
+}

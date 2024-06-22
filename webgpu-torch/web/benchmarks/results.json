@@ -1,0 +1,96 @@
+{
+  "iMac Pro 2017": {
+    "device_name": "Intel(R) Xeon(R) W-2150B CPU @ 3.00GHz",
+    "results": {
+      "unary 1d(1, 'neg')": {
+        "mean_ms": 0.0013323428999995723
+      },
+      "unary 1d(1, 'sigmoid')": {
+        "mean_ms": 0.0013603856999996554
+      },
+      "unary 1d(729, 'neg')": {
+        "mean_ms": 0.0013305160000001593
+      },
+      "unary 1d(729, 'sigmoid')": {
+        "mean_ms": 0.002093659800000225
+      },
+      "unary 1d(2187, 'neg')": {
+        "mean_ms": 0.0022147717000001064
+      },
+      "unary 1d(2187, 'sigmoid')": {
+        "mean_ms": 0.003605801400000086
+      },
+      "unary 1d(59049, 'neg')": {
+        "mean_ms": 0.013148151299999845
+      },
+      "unary 1d(59049, 'sigmoid')": {
+        "mean_ms": 0.057817308100000055
+      },
+      "unary 1d(177147, 'neg')": {
+        "mean_ms": 0.07292631520000029
+      },
+      "unary 1d(177147, 'sigmoid')": {
+        "mean_ms": 0.17737560400000027
+      },
+      "unary 1d(531441, 'neg')": {
+        "mean_ms": 0.4087741767999988
+      },
+      "unary 1d(531441, 'sigmoid')": {
+        "mean_ms": 0.7324491846999988
+      },
+      "unary 1d(1594323, 'neg')": {
+        "mean_ms": 1.4884860085999998
+      },
+      "unary 1d(1594323, 'sigmoid')": {
+        "mean_ms": 2.344154330700001
+      }
+    }
+  },
+  "Ubuntu": {
+    "device_name": "NVIDIA GeForce RTX 3090",
+    "results": {
+      "unary 1d(1, 'neg')": {
+        "mean_ms": 0.0030647471896372734
+      },
+      "unary 1d(1, 'sigmoid')": {
+        "mean_ms": 0.0032397051807492973
+      },
+      "unary 1d(729, 'neg')": {
+        "mean_ms": 0.0031437218189239503
+      },
+      "unary 1d(729, 'sigmoid')": {
+        "mean_ms": 0.0033297683112323284
+      },
+      "unary 1d(2187, 'neg')": {
+        "mean_ms": 0.0032443344127386807
+      },
+      "unary 1d(2187, 'sigmoid')": {
+        "mean_ms": 0.0034270648029632866
+      },
+      "unary 1d(59049, 'neg')": {
+        "mean_ms": 0.007682242966257036
+      },
+      "unary 1d(59049, 'sigmoid')": {
+        "mean_ms": 0.00791741251014173
+      },
+      "unary 1d(177147, 'neg')": {
+        "mean_ms": 0.017237114638555796
+      },
+      "unary 1d(177147, 'sigmoid')": {
+        "mean_ms": 0.017479626776184885
+      },
+      "unary 1d(531441, 'neg')": {
+        "mean_ms": 0.05082451964262873
+      },
+      "unary 1d(531441, 'sigmoid')": {
+        "mean_ms": 0.050223751668818296
+      },
+      "unary 1d(1594323, 'neg')": {
+        "mean_ms": 0.16550250959116966
+      },
+      "unary 1d(1594323, 'sigmoid')": {
+        "mean_ms": 0.15677298542577772
+      }
+    }
+  }
+}

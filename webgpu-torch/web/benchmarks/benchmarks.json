@@ -1,0 +1,32 @@
+{
+    "benchmarks": [
+        {
+            "name": "unary 1d",
+            "type": "unary",
+            "warmupIterations": 10,
+            "iterations": 100,
+            "depth": 100,
+            "inputs": [
+                {
+                    "name": "input_shape",
+                    "values": [
+                        1,
+                        729,
+                        2187,
+                        59049,
+                        177147,
+                        531441,
+                        1594323
+                    ]
+                },
+                {
+                    "name": "operation",
+                    "values": [
+                        "neg",
+                        "sigmoid"
+                    ]
+                }
+            ]
+        }
+    ]
+}
