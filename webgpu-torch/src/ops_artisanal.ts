@@ -122,7 +122,7 @@ function collapse(a: Tensor, start: number, end: number): Tensor {
 }
 
 /** Flattens a contiguous range of dims into a 1D tensor.
- *  
+ *
  * `flatten`, unlike other shape operators, returns the input tensor on a no-op
  * (unless a 0D tensor is flattened, in which case it's returned in 1D).
  * */
@@ -362,7 +362,7 @@ function inferSize(shape: Shape, numel: number): Shape {
     if (dim !== null) {
         check(
             newsize != 0,
-            () => `cannot reshape tensor of 0 elements into shape ${shape} because the unspecified dimension size -1 can be any 
+            () => `cannot reshape tensor of 0 elements into shape ${shape} because the unspecified dimension size -1 can be any
 value and is ambiguous`
         );
         shape[dim] = Math.floor(numel / newsize);
