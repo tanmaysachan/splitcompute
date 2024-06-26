@@ -1229,6 +1229,17 @@ export function mean(input: Tensor, dim?: number | number[], keepdim?: boolean):
     return reduction(functions.MeanFunction, input, dim, keepdim);
 }
 /**
+ * Calculates:
+ * ```js
+ * output = output + input; sqsum = sqsum + input * input
+ *
+ * @param
+ * @returns
+ */
+export function std(input: Tensor, dim?: number | number[], keepdim?: boolean): Tensor {
+    return reduction(functions.StdFunction, input, dim, keepdim)
+}
+/**
 * Calculates:
 * ```js
 * output = output + input * input

@@ -310,7 +310,7 @@ export function parseCode(code: ExprCode): ExprNode {
         if (i >= tokens.length) {
             return null;
         }
-        
+
         // Empty statement?
         if (tokens[i] === ";") {
             // console.log("parse Empty Statement:", i, tokens.slice(i));

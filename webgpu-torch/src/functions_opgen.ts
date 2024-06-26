@@ -1926,6 +1926,74 @@ export class MeanFunction extends AutoFunction {
         }
     }
 }
+export class StdFunction extends AutoFunction {
+    static forward(inputs: FunctionInput[]): Tensor {
+        let [input, dim, keepdim] = inputs as [Tensor, number | number[] | undefined, boolean | undefined];
+        if (dim !== undefined) {
+            dim = Array.isArray(dim) && dim.length === 1 ? dim[0] : dim;
+            if (typeof dim === "number") {
+                const inputShape = input.shape;
+                let outputShape = input.shape.slice();
+                outputShape[dim] = 1;
+                let outputStrides = defaultStrides(outputShape);
+                const params = {
+                    size: shapeSize(outputShape),
+                    inputShape0: input.shape.length > 0 ? input.shape[0] : 1,
+                    inputStride0: input.shape.length > 0 ? input.strides[0] : 1,
+                    outputStride0: outputShape.length > 0 ? outputStrides[0] : 1,
+                    inputShape1: input.shape.length > 1 ? input.shape[1] : 1,
+                    inputStride1: input.shape.length > 1 ? input.strides[1] : 1,
+                    outputStride1: outputShape.length > 1 ? outputStrides[1] : 1,
+                    inputShape2: input.shape.length > 2 ? input.shape[2] : 1,
+                    inputStride2: input.shape.length > 2 ? input.strides[2] : 1,
+                    outputStride2: outputShape.length > 2 ? outputStrides[2] : 1,
+                    inputShape3: input.shape.length > 3 ? input.shape[3] : 1,
+                    inputStride3: input.shape.length > 3 ? input.strides[3] : 1,
+                    outputStride3: outputShape.length > 3 ? outputStrides[3] : 1,
+                };
+                if (!keepdim) outputShape.splice(dim, 1);
+                return input.runKernel("std_dim", {dim,maxdim:inputShape.length,dtype:"float32"}, params, [outputShape])[0];
+            } else {
+                throw new Error("Multi-dimension reduction not supported");
+            }
+        } else {
+            const params = {
+                size: shapeSize(input.shape),
+            };
+            return input.runKernel("std", {"dtype":"float32","workgroupSize":256}, params, [[]])[0];
+        }
+    }
+    static setupContext(
+        ctx: GradientContext,
+        inputs: FunctionInput[],
+        output: Tensor
+    ): void {
+        let [input, dim, keepdim] = inputs as [Tensor, number | number[] | undefined, boolean | undefined];
+        ctx.dim = dim;
+        ctx.keepdim = keepdim;
+        ctx.saveForBackward(input, output);
+    }
+    static backward(ctx: GradientContext, outputGrad: Tensor): GradientFunctionOutput[] {
+        const [input, output] = ctx.savedTensors as [Tensor, Tensor];
+        const dim: number | number[] | undefined = ctx.dim;
+        const keepdim: boolean | undefined = ctx.keepdim;
+        if (dim !== undefined) {
+            if (typeof dim === "number") {
+                const params = {
+                    size: shapeSize(input.shape),
+                };
+                return input.runKernel("std_dim_grad", {"dtype":"float32","workgroupSize":256}, params, [input.shape], output, outputGrad);
+            } else {
+                throw new Error("Multi-dimension backward reduction not supported");
+            }
+        } else {
+            const params = {
+                size: shapeSize(input.shape),
+            };
+            return input.runKernel("std_grad", {"dtype":"float32","workgroupSize":256}, params, [input.shape], output, outputGrad);
+        }
+    }
+}
 export class NormFunction extends AutoFunction {
     static forward(inputs: FunctionInput[]): Tensor {
         let [input, dim, keepdim] = inputs as [Tensor, number | number[] | undefined, boolean | undefined];

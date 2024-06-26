@@ -267,6 +267,7 @@ export class Tensor extends TensorBase {
             }];
             const node = new KernelNode(kernel, inputRefs, params, outputSpecs);
             this._node = node.getOutputRef(0);
+            // Print kernel
         }
         else {
             const kernel = this.device.getKernel(name, config);
@@ -3062,6 +3063,12 @@ export class Tensor extends TensorBase {
     */
     mean(dim?: number | number[], keepdim?: boolean): Tensor {
         return ops.mean(this, dim, keepdim);
+    }
+    /**
+     *
+     */
+    std(dim?: number | number[], keepdim?: boolean): Tensor {
+        return ops.std(this, dim, keepdim);
     }
     /**
     * Calculates:

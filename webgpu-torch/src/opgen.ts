@@ -247,6 +247,38 @@ function getReductionDimKernelSpec(op: ReductionOpSpec): KernelSpec {
     ${reduceCode};
     output[outputIndex] = accumulator;
 `;
+
+    if (op.initStepTwo && op.forwardStepTwo && op.reduceStepTwo && op.combineOpStepTwo) {
+        const initCodeStepTwo = exprCodeToWebGLShader(op.initStepTwo, {
+            input: "input[inputIndex]",
+            output: "accumulatorTwo",
+        });
+        const forwardCodeStepTwo = exprCodeToWebGLShader(op.forwardStepTwo, {
+            input: "input[inputIndex]",
+            output: "accumulatorTwo",
+            prevOutput: "accumulator",
+        });
+        const reduceCodeStepTwo = exprCodeToWebGLShader(op.reduceStepTwo, {
+            input: "input[inputIndex]",
+            output: "accumulatorTwo",
+            inputSize: "dimN",
+        });
+        shader += `
+        var ${initCodeStepTwo};
+        for (var dimI = 0u; dimI < dimN; dimI++) {
+            outputIndex$$dim$$ = dimI;
+            let inputIndex =
+                outputIndex0 * parameters.inputStride0 +
+                outputIndex1 * parameters.inputStride1 +
+                outputIndex2 * parameters.inputStride2 +
+                outputIndex3;
+            ${forwardCodeStepTwo};
+        }
+        ${reduceCodeStepTwo};
+        output[outputIndex] = accumulatorTwo;
+    `;
+    }
+
     return {
         name: op.name + "_dim",
         config: [

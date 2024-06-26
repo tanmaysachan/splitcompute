@@ -12,7 +12,7 @@ async function awaitTensorf32(path, expected_shape) {
 
 class GPT2LayerNorm {
     constructor() {
-
+        
     }
 }
 
@@ -47,9 +47,6 @@ class GPT2Block {
     }
 
     forward(x) {
-        const attn = this.attention(x);
-        const mlp = this.mlp(attn);
-        return mlp;
     }
 }
 
@@ -62,8 +59,22 @@ window.onload = async () => {
     // Load partial state
     const partial_state = await awaitTensorf32("http://localhost:8000/test/sample-website/ml-assets/GPT2/partial.bin",
                                                [5, 8, 768]);
-    console.log(partial_state.mean(2, true))
+
     // Load layer 1
     GPT2Block0 = new GPT2Block(0);
     await GPT2Block0.load_weights();
+
+
+    // Layernorm test
+    const gamma = GPT2Block0.layer_weights['transformer.h.0.ln_1.weight.weights'];
+    const beta = GPT2Block0.layer_weights['transformer.h.0.ln_1.bias.weights'];
+
+    mean = partial_state.mean(2, true);
+    std = partial_state.std(2, true);
+
+    const layernorm_out = gamma.reshape([1, 1, 768]).mul(partial_state.sub(mean).div(std)).add(beta);
+    console.log(layernorm_out.shape);
+    layernorm_out.toArrayAsync().then((data) => {
+        console.log(data);
+    })
 }

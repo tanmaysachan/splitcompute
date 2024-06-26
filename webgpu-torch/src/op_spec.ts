@@ -28,6 +28,11 @@ export type ReductionOpSpec = OpSpec & {
     init: ExprCode;
     combineOp: "+" | "*" | "&&" | "||";
     reduce?: ExprCode;
+    // Optional second step for two-step reductions (e.g. std)
+    initStepTwo?: ExprCode;
+    forwardStepTwo?: ExprCode;
+    combineOpStepTwo?: "+" | "*" | "&&" | "||";
+    reduceStepTwo?: ExprCode;
 }
 
 export type AnOpSpec = UnaryOpSpec | BinaryOpSpec | ReductionOpSpec;

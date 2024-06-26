@@ -428,7 +428,19 @@ export const registry: AnOpSpec[] = [
         backward: "inputGrad = outputGrad * output / input",
     },
     // quantile: wtf
-    // std: two step
+    // STDDDDD
+    {
+        name: "std",
+        type: "reduction",
+        combineOp: "+",
+        init: "output = 0.0",
+        forward: "output = output + input",
+        reduce: "output = output / f32(inputSize)",
+        combineOpStepTwo: "+",
+        initStepTwo: "output = 0.0",
+        forwardStepTwo: "output = output + (input - prevOutput) * (input - prevOutput)",
+        reduceStepTwo: "output = sqrt(output / f32(inputSize))",
+    },
     // std_mean: two step
     {
         name: "sum",
