@@ -457,6 +457,9 @@ export class Tensor extends TensorBase {
     t(): Tensor {
         return aops.t(this);
     }
+    transpose(dim1: number, dim2: number): Tensor {
+        return aops.transpose(this, dim1, dim2);
+    }
     uniform_(lowerBound: number, upperBound: number): Tensor {
         const params = {
             size: shapeSize(this.shape),

@@ -8,9 +8,9 @@ import {
     defaultStrides,
     reshapeBatchedMatmul,
     shapesAreEqual,
-    type Shape,
-    type StridedShape,
-    type Strides,
+    Shape,
+    StridedShape,
+    Strides,
     shapeSize,
     check,
     validateIdx,
@@ -625,6 +625,31 @@ export function t(input: Tensor): Tensor {
     }
 }
 
+export function transpose(input: Tensor, dim1: number, dim2: number): Tensor {
+    // TEST THIS
+
+    if (input.shape.length === 2) {
+        return input.t();
+    }
+    if (input.shape.length <= dim1 || input.shape.length <= dim2) {
+        throw new Error(`Expected dimensions ${dim1} and ${dim2} to be less than ${input.shape.length}`);
+    }
+
+    // Swap shape and stride indices
+
+    let newShape = input.shape.slice();
+    let swap = newShape[dim1];
+    newShape[dim1] = newShape[dim2];
+    newShape[dim2] = swap;
+
+    let newStrides = input.strides.slice();
+    swap = newStrides[dim1];
+    newStrides[dim1] = newStrides[dim2];
+    newStrides[dim2] = swap;
+
+    return input.withShape(newShape, newStrides)
+}
+
 export function tensor(spec: TensorSpec): Tensor;
 export function tensor(
     array: TensorData,
@@ -685,3 +710,7 @@ export function unsqueeze(input: Tensor, dim?: number): Tensor {
 export function view(input: Tensor, shape: number[]): Tensor {
     return reshapeViewHelper(input, shape, false);
 }
+
+// export function split(input: Tensor, splitSize: number, dim: number): Tensor[] {
+
+// }
