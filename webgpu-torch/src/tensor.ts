@@ -10,8 +10,8 @@ import {
     newStorageFromATypedArray,
     newTypedArrayFromArray,
 } from "./storage";
-import { type GradientFunction, type GradientContext, isGradEnabled } from "./autograd";
-import { shaderTypeToDtype, type KernelConfigInput, type KernelParamsInput } from "./kernel";
+import { GradientFunction, GradientContext, isGradEnabled } from "./autograd";
+import { shaderTypeToDtype, KernelConfigInput, KernelParamsInput } from "./kernel";
 import * as ops from "./ops_opgen";
 import * as aops from "./ops_artisanal";
 import { TensorBase } from "./tensor_base";

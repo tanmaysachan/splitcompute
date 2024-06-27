@@ -428,7 +428,6 @@ export const registry: AnOpSpec[] = [
         backward: "inputGrad = outputGrad * output / input",
     },
     // quantile: wtf
-    // STDDDDD
     {
         name: "std",
         type: "reduction",

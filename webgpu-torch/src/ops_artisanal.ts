@@ -636,7 +636,6 @@ export function transpose(input: Tensor, dim1: number, dim2: number): Tensor {
     }
 
     // Swap shape and stride indices
-
     let newShape = input.shape.slice();
     let swap = newShape[dim1];
     newShape[dim1] = newShape[dim2];
@@ -711,6 +710,42 @@ export function view(input: Tensor, shape: number[]): Tensor {
     return reshapeViewHelper(input, shape, false);
 }
 
-// export function split(input: Tensor, splitSize: number, dim: number): Tensor[] {
+export function split(input: Tensor, splitSize: number, dim: number): Tensor[] {
+    let offset = input.storage.byteOffset;
+    let minDim = 0;
+    let maxDim = input.shape.length;
 
-// }
+    if (dim < minDim || dim >= maxDim) {
+        throw new Error(
+            `Dimension out of range (expected to be in range of [${minDim}, ${
+                maxDim - 1
+            }], but got ${dim})`
+        );
+    }
+
+    let chunks: number = Math.ceil(input.shape[dim] / splitSize);
+    let splitShape = input.shape.slice();
+    // Split strides don't change
+    let splitStride = input.strides.slice();
+    splitShape[dim] = splitSize;
+    // Offset is incremented by all the elements after the split dimension
+    let offsetIncrementBytes =
+        splitSize * splitShape.slice(dim + 1).reduce((a, b) => a * b, 1) * 4; // 4 bytes per float
+
+    let outTensors: Tensor[] = []
+
+    for (let i = 0; i < chunks; i++) {
+        // TODO: Uneven splitting
+        let tensor = new Tensor({
+            data: input.storage.shallowSlice(offset),
+            shape: splitShape.slice(),
+            dtype: input.dtype,
+            requiresGrad: input.requiresGrad,
+        });
+        tensor = tensor.withShape(tensor.shape, splitStride);
+        outTensors.push(tensor);
+        offset += offsetIncrementBytes;
+    }
+
+    return outTensors;
+}

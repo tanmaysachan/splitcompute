@@ -13,6 +13,7 @@ export abstract class UntypedStorage {
     abstract destroy(): void;
     abstract clone(): UntypedStorage;
     abstract toTypedArrayAsync(dtype: Dtype): Promise<ATypedArray>;
+    abstract shallowSlice(offset: number): UntypedStorage;
     async toArrayAsync(dtype: Dtype): Promise<number[]> {
         const typedArray = await this.toTypedArrayAsync(dtype);
         return Array.from(typedArray);
@@ -78,6 +79,9 @@ export class ArrayBufferStorage extends UntypedStorage {
     clone(): UntypedStorage {
         return new ArrayBufferStorage(this._buffer.slice(0));
     }
+    shallowSlice(offset: number): UntypedStorage {
+        return new ArrayBufferStorage(this._buffer.slice(offset));
+    }
 }
 
 export class GPUBufferStorage extends UntypedStorage {
@@ -102,6 +106,8 @@ export class GPUBufferStorage extends UntypedStorage {
         return this._gpuDevice;
     }
     constructor(buffer: GPUBuffer, device: DeviceWebGPU);
+    // To force shallow slice
+    constructor(buffer: GPUBuffer, device: DeviceWebGPU, usage: GPUBufferUsageFlags, storageOffset: number);
     constructor(buffer: HeapBuffer<GPUBuffer>, device: DeviceWebGPU);
     constructor(
         byteSize: number,
@@ -111,7 +117,8 @@ export class GPUBufferStorage extends UntypedStorage {
     constructor(
         input: number | GPUBuffer | HeapBuffer<GPUBuffer>,
         device: DeviceWebGPU,
-        usage?: GPUBufferUsageFlags
+        usage?: GPUBufferUsageFlags,
+        storageOffset?: number,
     ) {
         super();
         this._device = device;
@@ -119,6 +126,10 @@ export class GPUBufferStorage extends UntypedStorage {
         if (input instanceof GPUBuffer) {
             this._buffer = input;
             this._byteSize = this._buffer.size;
+            if (storageOffset !== undefined) {
+                this._byteOffset = storageOffset;
+                this._byteSize = this._buffer.size - storageOffset;
+            }
         } else if (input instanceof HeapBuffer) {
             this._buffer = input.heap.buffer;
             this._byteOffset = input.offset;
@@ -201,6 +212,9 @@ export class GPUBufferStorage extends UntypedStorage {
         const gpuCommands = commandEncoder.finish();
         this._gpuDevice.queue.submit([gpuCommands]);
         return new GPUBufferStorage(cloneBuffer, this._device);
+    }
+    shallowSlice(offset: number): UntypedStorage {
+        return new GPUBufferStorage(this._buffer, this._device, 0, offset);
     }
 }
 
