@@ -43,6 +43,32 @@ export function clone(
     }
 }
 
+export function triu(input: Tensor, diagonal: number = 0): Tensor {
+    let unsqueezed = false;
+    if (input.shape.length == 2) {
+        input = input.unsqueeze(0);
+        unsqueezed = true;
+    }
+    const params = {
+        batchSize: input.shape[0],
+        aRows: input.shape[1],
+        aCols: input.shape[2],
+        aBatchStride: input.strides[0],
+        aRowStride: input.strides[1],
+        aColStride: input.strides[2],
+    };
+    let out = input.runKernel(
+        "triu",
+        { dtype: input.dtype },
+        params,
+        [input.shape],
+    )[0];
+    if (unsqueezed) {
+        return out.squeeze(0);
+    }
+    return out;
+}
+
 /**
  * Applies a 2D convolution over an input image composed of several input planes.
  *

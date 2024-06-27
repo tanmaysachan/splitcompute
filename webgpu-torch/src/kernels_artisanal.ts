@@ -1,6 +1,77 @@
 import { KernelSpec } from "./kernel";
 
 export const kernels: { [name: string]: KernelSpec } = {
+    triu: {
+        // TODO: Add diagonal support
+        name: "triu",
+        config: [
+            {
+                name: "dtype",
+            },
+        ],
+        parameters: [
+            {
+                name: "batchSize",
+                shaderType: "u32",
+            },
+            {
+                name: "aRows",
+                shaderType: "u32",
+            },
+            {
+                name: "aCols",
+                shaderType: "u32",
+            },
+            {
+                name: "aBatchStride",
+                shaderType: "u32",
+            },
+            {
+                name: "aRowStride",
+                shaderType: "u32",
+            },
+            {
+                name: "aColStride",
+                shaderType: "u32",
+            },
+        ],
+        inputs: [
+            {
+                name: "a",
+                shaderType: "array<f32>",
+            },
+        ],
+        outputs: [
+            {
+                name: "output",
+                shaderType: "array<f32>",
+                size: "batchSize * aRows * aCols",
+            },
+        ],
+        workgroupSize: [8, 8, 4],
+        workgroupCount: ["aRows/8", "aCols/8", "batchSize/4"],
+        shader: `
+    let outputRow = global_id.x;
+    let outputCol = global_id.y;
+    let outputBatch = global_id.z;
+
+    if (outputRow >= parameters.aRows || outputCol >= parameters.aCols || outputBatch >= parameters.batchSize) {
+        return;
+    }
+
+    var aIndex = outputBatch * parameters.aBatchStride + outputRow * parameters.aRowStride + outputCol;
+    let outputRowStride = parameters.aCols;
+    let outputBatchStride = parameters.aRows * outputRowStride;
+    let outputIndex = outputBatch * outputBatchStride + outputRow * outputRowStride + outputCol;
+
+    if (outputRow > outputCol) {
+        output[outputIndex] = 0.0;
+        return;
+    }
+
+    output[outputIndex] = a[aIndex];
+`
+    },
     conv2d: {
         name: "conv2d",
         config: [
