@@ -4,6 +4,7 @@ import type { Deviceish } from "./device";
 import type { Dtype } from "./dtype";
 import {
     broadcastBatchedMatmul,
+    broadcastShapes,
     contiguousStridedShape,
     defaultStrides,
     reshapeBatchedMatmul,
@@ -43,12 +44,13 @@ export function clone(
     }
 }
 
-export function triu(input: Tensor, diagonal: number = 0): Tensor {
+export function tril(input: Tensor, diagonal: number = 0): Tensor {
     let unsqueezed = false;
     if (input.shape.length == 2) {
         input = input.unsqueeze(0);
         unsqueezed = true;
     }
+    // TODO: Not >3dim tril, should be easy
     const params = {
         batchSize: input.shape[0],
         aRows: input.shape[1],
@@ -56,6 +58,35 @@ export function triu(input: Tensor, diagonal: number = 0): Tensor {
         aBatchStride: input.strides[0],
         aRowStride: input.strides[1],
         aColStride: input.strides[2],
+        diagonal: diagonal,
+    };
+    let out = input.runKernel(
+        "tril",
+        { dtype: input.dtype },
+        params,
+        [input.shape],
+    )[0];
+    if (unsqueezed) {
+        return out.squeeze(0);
+    }
+    return out;
+}
+
+export function triu(input: Tensor, diagonal: number = 0): Tensor {
+    let unsqueezed = false;
+    if (input.shape.length == 2) {
+        input = input.unsqueeze(0);
+        unsqueezed = true;
+    }
+    // TODO: Not >3dim tril, should be easy
+    const params = {
+        batchSize: input.shape[0],
+        aRows: input.shape[1],
+        aCols: input.shape[2],
+        aBatchStride: input.strides[0],
+        aRowStride: input.strides[1],
+        aColStride: input.strides[2],
+        diagonal: diagonal,
     };
     let out = input.runKernel(
         "triu",
@@ -69,6 +100,35 @@ export function triu(input: Tensor, diagonal: number = 0): Tensor {
     return out;
 }
 
+export function masked_fill(input: Tensor, mask: Tensor, value: number) {
+    let op = "masked_fill";
+    const broadcast = broadcastShapes(input, mask);
+    const inputStridedShape = reshapeBatchedMatmul(broadcast.a);
+    const maskStridedShape = reshapeBatchedMatmul(broadcast.b);
+
+    let params = {
+        batchSize: inputStridedShape.shape[0],
+        aRows: inputStridedShape.shape[1],
+        aCols: inputStridedShape.shape[2],
+        aBatchStride: inputStridedShape.strides[0],
+        aRowStride: inputStridedShape.strides[1],
+        aColStride: inputStridedShape.strides[2],
+        bBatchStride: maskStridedShape.strides[0],
+        bRowStride: maskStridedShape.strides[1],
+        bColStride: maskStridedShape.strides[2],
+        fill: value,
+    };
+
+    let out = input.runKernel(
+        op,
+        { resultDtype: input.dtype },
+        params,
+        [input.shape],
+        mask
+    )[0];
+
+    return out;
+}
 /**
  * Applies a 2D convolution over an input image composed of several input planes.
  *
@@ -652,7 +712,7 @@ export function t(input: Tensor): Tensor {
 }
 
 export function transpose(input: Tensor, dim1: number, dim2: number): Tensor {
-    // TEST THIS
+    // TODO: TEST THIS
 
     if (input.shape.length === 2) {
         return input.t();

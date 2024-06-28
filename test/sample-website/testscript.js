@@ -10,9 +10,26 @@ async function awaitTensorf32(path, expected_shape) {
                 .reshape(expected_shape);
 }
 
+class GPT2Attention {
+    constructor(c_attn, c_proj) {
+        this.c_attn = c_attn;
+        this.c_proj = c_proj;
+    }
+
+    forward(x) {
+    }
+}
+
 class GPT2LayerNorm {
-    constructor() {
-        
+    constructor(gamma, beta) {
+        this.gamma = gamma;
+        this.beta = beta;
+    }
+
+    forward(x) {
+        const mean = x.mean(2, true);
+        const std = x.std(2, true);
+        return this.gamma.reshape([1, 1, 768]).mul(x.sub(mean).div(std)).add(this.beta);
     }
 }
 
@@ -69,12 +86,8 @@ window.onload = async () => {
     const gamma = GPT2Block0.layer_weights['transformer.h.0.ln_1.weight.weights'];
     const beta = GPT2Block0.layer_weights['transformer.h.0.ln_1.bias.weights'];
 
-    mean = partial_state.mean(2, true);
-    std = partial_state.std(2, true);
+    // LAYERNORM WORKS!
+    layernorm_out = new GPT2LayerNorm(gamma, beta).forward(partial_state)
 
-    const layernorm_out = gamma.reshape([1, 1, 768]).mul(partial_state.sub(mean).div(std)).add(beta);
-    console.log(layernorm_out.shape);
-    layernorm_out.toArrayAsync().then((data) => {
-        console.log(data);
-    })
+    // Attention test
 }
