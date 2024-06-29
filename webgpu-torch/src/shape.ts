@@ -126,6 +126,24 @@ export function broadcastShapes(
     };
 }
 
+export function reshapeBatchDim(tensor: StridedShape, batchDim: number): StridedShape {
+    const inputShape = tensor.shape;
+    const inputStrides = tensor.strides;
+
+    let batchSize = 1;
+    for (let i = 0; i < batchDim; i++) {
+        batchSize *= inputShape[i];
+    }
+
+    const newShape = [batchSize].concat(inputShape.slice(batchDim));
+    const newStrides = [inputStrides[batchDim-1]].concat(inputStrides.slice(batchDim));
+
+    return {
+        shape: newShape,
+        strides: newStrides,
+    };
+}
+
 export function reshapeBatchedMatmul(tensor: StridedShape): StridedShape {
     const inputShape = tensor.shape;
     const inputStrides = tensor.strides;

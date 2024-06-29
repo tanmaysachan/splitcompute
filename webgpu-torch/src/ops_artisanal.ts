@@ -17,6 +17,7 @@ import {
     validateIdx,
     validateDimLength,
     canonicalizeDim,
+    reshapeBatchDim,
 } from "./shape";
 import type { TensorData, TensorSpec, MemoryFormat } from "./tensor";
 import { KernelParamsInput } from "./kernel";
@@ -129,6 +130,28 @@ export function masked_fill(input: Tensor, mask: Tensor, value: number) {
 
     return out;
 }
+
+export function softmax(input: Tensor, dim: number = -1): Tensor {
+    let op = "softmax";
+    const applyShape = reshapeBatchDim(input, dim);
+
+    let params = {
+        batchSize: applyShape.shape[0],
+        batchStride: applyShape.strides[0],
+        dimSize: applyShape.shape[1],
+        dimStride: applyShape.strides[1],
+    };
+
+    let out = input.runKernel(
+        op,
+        { resultDtype: "float32" },
+        params,
+        [input.shape],
+    )[0];
+
+    return out;
+}
+
 /**
  * Applies a 2D convolution over an input image composed of several input planes.
  *

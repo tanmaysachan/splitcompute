@@ -1,6 +1,75 @@
 import { KernelSpec } from "./kernel";
 
 export const kernels: { [name: string]: KernelSpec } = {
+    softmax: {
+        name: "softmax",
+        config: [
+            {
+                name: "resultDtype",
+            },
+        ],
+        parameters: [
+            {
+                name: "batchSize",
+                shaderType: "u32",
+            },
+            {
+                name: "batchStride",
+                shaderType: "u32",
+            },
+            {
+                name: "dimSize",
+                shaderType: "u32",
+            },
+            {
+                name: "dimStride",
+                shaderType: "u32",
+            },
+        ],
+        inputs: [
+            {
+                name: "input",
+                shaderType: "array<f32>",
+            },
+        ],
+        outputs: [
+            {
+                name: "output",
+                shaderType: "array<f32>",
+                size: "batchSize * dimSize * dimStride",
+            },
+        ],
+        workgroupSize: [64, 1, 4],
+        workgroupCount: ["dimStride/64", 1, "batchSize/4"],
+        shader: `
+    let offset = global_id.x;
+    let batch = global_id.z;
+
+    if (offset >= parameters.dimStride || batch >= parameters.batchSize) {
+        return;
+    }
+
+    // Reduce max
+    var maxVal = -3.4028234663852886e+38;
+    for (var i = 0u; i < parameters.dimSize; i = i + 1u) {
+        var index = batch * parameters.batchStride + i * parameters.dimStride + offset;
+        maxVal = max(maxVal, input[index]);
+    }
+
+    // Reduce sum
+    var sum = 0.0;
+    for (var i = 0u; i < parameters.dimSize; i = i + 1u) {
+        var index = batch * parameters.batchStride + i * parameters.dimStride + offset;
+        sum = sum + exp(input[index] - maxVal);
+    }
+
+    // Compute softmax
+    for (var i = 0u; i < parameters.dimSize; i = i + 1u) {
+        var index = batch * parameters.batchStride + i * parameters.dimStride + offset;
+        output[index] = exp(input[index] - maxVal) / sum;
+    }
+`
+    },
     masked_fill: {
         name: "masked_fill",
         config: [
@@ -92,7 +161,6 @@ export const kernels: { [name: string]: KernelSpec } = {
     output[outputIndex] = result;
 `
     },
-
     tril: {
         // TODO: Diagonals are broken, some webgpu kink
         name: "tril",
