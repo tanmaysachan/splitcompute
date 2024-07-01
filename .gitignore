@@ -5,3 +5,4 @@ webgpu-torch/.vscode
 
 test/.DS_Store
 test/sample-website/ml-assets/GPT2
+test/sample-website/ml-assets/GPT2-XL
