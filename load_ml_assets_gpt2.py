@@ -4,6 +4,7 @@ import torch
 from torch import nn
 import math
 import torch.nn.functional as F
+import tiktoken
 
 @dataclass
 class GPTConfig:
@@ -13,6 +14,15 @@ class GPTConfig:
     n_head: int = 12
     n_embd: int = 768
 
+def partial_forward(model, tokens, till_layer):
+    x = tokens.to('mps')
+    logits = model.forward(x, till_layer)
+    return logits
+
+def process_input_text(text, enc):
+    tokens = enc.encode(text)
+    tokens = torch.tensor(tokens, dtype=torch.long).unsqueeze(0)
+    return tokens
 
 def load_gpt2_model(model_type='gpt2'):
     config_args = {
@@ -25,14 +35,16 @@ def load_gpt2_model(model_type='gpt2'):
     config_args['block_size'] = 1024 # always 1024 for GPT model checkpoints
     # create a from-scratch initialized minGPT model
     config = GPTConfig(**config_args)
-    model = GPT(config)
+    model = GPT(config, model_type)
+    model = model.to('mps')
     sd = model.state_dict()
 
     sd_keys = sd.keys()
     sd_keys = [k for k in sd_keys if not k.endswith('.attn.bias')] # discard this mask / buffer, not a param
 
-    return sd, config
+    enc = tiktoken.get_encoding('gpt2')
 
+    return model, sd, enc, config.__dict__
 
 class CausalSelfAttention(nn.Module):
     def __init__(self, config):
@@ -61,7 +73,7 @@ class CausalSelfAttention(nn.Module):
         v = v.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
 
         att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))
-        # att = att.masked_fill(self.bias[:, :, :T, :T] == 0, float('-inf'))
+        att = att.masked_fill(self.bias[:, :, :T, :T] == 0, float('-inf'))
         att = F.softmax(att, dim=-1)
         y = att @ v
         y = y.transpose(1, 2).contiguous().view(B, T, C)
@@ -98,8 +110,9 @@ class Block(nn.Module):
 
 
 class GPT(nn.Module):
-    def __init__(self, config: GPTConfig):
+    def __init__(self, config: GPTConfig, model_type='gpt2'):
         super().__init__()
+        self.model_type = model_type
         self.config = config
 
         self.transformer = nn.ModuleDict(dict(
@@ -110,7 +123,7 @@ class GPT(nn.Module):
         ))
         self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False)
 
-    def forward(self, idx):
+    def forward(self, idx, till_layer=3):
         B, T = idx.size()
         assert T <= self.config.block_size, "Cannot forward, model block size is exhausted."
 
@@ -119,24 +132,22 @@ class GPT(nn.Module):
         tok_emb = self.transformer.wte(idx)
         x = tok_emb + pos_emb
 
-        # # Save x to a file
-        # with open('partial_xl.bin', 'wb') as f:
-        #     to_write = x.cpu().detach().numpy().tolist()
-        #     print(x.sum())
-        #     print(x.sum())
-        #     import struct
-        #     import itertools
-        #     to_write = list(itertools.chain(*to_write))
-        #     to_write = list(itertools.chain(*to_write))
-        #     f.write(struct.pack('%sf' % len(to_write), *to_write))
-
-        for block in self.transformer.h[:3]:
+        for block in self.transformer.h[:till_layer]:
             x = block(x)
+
+        self.dump_partial_state(x)
 
         x = self.transformer.ln_f(x)
         logits = self.lm_head(x)
         return logits
 
-# Load the model
-sd, config = load_gpt2_model('gpt2')
-print(config)
+    def dump_partial_state(self, x):
+        with open(f'./ml-assets/{self.model_type}/partial_state.bin', 'wb') as f:
+            to_write = x.cpu().detach().numpy().tolist()
+            import struct
+            import itertools
+
+            # Pack into bytes
+            to_write = list(itertools.chain(*to_write))
+            to_write = list(itertools.chain(*to_write))
+            f.write(struct.pack('%sf' % len(to_write), *to_write))
