@@ -126,11 +126,11 @@ class GPT2Block {
                               this.layer_weights[`transformer.h.${this.layer_num}.mlp.c_proj.weight.weights`],
                               this.layer_weights[`transformer.h.${this.layer_num}.mlp.c_proj.bias.weights`]);
 
-        var x = ln_1.forward(x);
-        var attn_out = attn.forward(x);
+        var x_ = ln_1.forward(x);
+        var attn_out = attn.forward(x_);
         var x = x.add(attn_out);
-        var x = ln_2.forward(x);
-        var x = mlp.forward(x).add(x);
+        var x_ = ln_2.forward(x);
+        var x = mlp.forward(x_).add(x);
         return x;
     }
 }
