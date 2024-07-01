@@ -2,9 +2,11 @@ webgpu-torch/dist
 webgpu-torch/node_modules
 webgpu-torch/.github
 webgpu-torch/.vscode
+__pycache__/
 
 test/.DS_Store
 test/sample-website/ml-assets/GPT2
 test/sample-website/ml-assets/GPT2-XL
 
 ml-assets/
+
