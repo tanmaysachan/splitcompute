@@ -46,6 +46,9 @@ class GPT2Attention {
         v = v.reshape([5, 8, 25, 64]).transpose(1, 2).contiguous();
 
         let att = torch.matmul(q, k).div(8);
+        
+        att = torch.masked_fill(att, torch.triu(torch.ones([8, 8]), 1), -1000000000);
+
         att = torch.softmax(att, 3);
         v = torch.contiguous(v);
 
