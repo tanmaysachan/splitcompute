@@ -25,11 +25,12 @@
             <button type="submit" class="btn btn-primary">Encode</button>
         </form>
         {% if encoded_text %}
-            <div class="mt-4">
-                <h2>Encoded Text:</h2>
+            <div class="mt-4" id="encoded_text">
+                <h2>Torch Out (ground truth):</h2>
                 <p class="form-text">{{ encoded_text }}</p>
             </div>
         {% endif %}
+        <div class="mt-4" id="inject-js"></div>
     </div>
     <!-- Bootstrap Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>

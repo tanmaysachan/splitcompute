@@ -1,4 +1,4 @@
-from transformers import GPT2Model, GPT2Config
+from transformers import GPT2LMHeadModel, GPT2Config
 from dataclasses import dataclass
 import torch
 from torch import nn
@@ -16,15 +16,15 @@ class GPTConfig:
 
 def partial_forward(model, tokens, till_layer):
     x = tokens.to('mps')
-    logits = model.forward(x, till_layer)
-    return logits
+    full_fwd_out = model.forward(x, till_layer)
+    return full_fwd_out
 
 def process_input_text(text, enc):
     tokens = enc.encode(text)
     tokens = torch.tensor(tokens, dtype=torch.long).unsqueeze(0)
     return tokens
 
-def load_gpt2_model(model_type='gpt2'):
+def load_gpt2_model(model_type='gpt2', layers_to_offload=3):
     config_args = {
         'gpt2':         dict(n_layer=12, n_head=12, n_embd=768),  # 124M params
         'gpt2-medium':  dict(n_layer=24, n_head=16, n_embd=1024), # 350M params
@@ -42,7 +42,66 @@ def load_gpt2_model(model_type='gpt2'):
     sd_keys = sd.keys()
     sd_keys = [k for k in sd_keys if not k.endswith('.attn.bias')] # discard this mask / buffer, not a param
 
+    model_hf = GPT2LMHeadModel.from_pretrained(model_type)
+    sd_hf = model_hf.state_dict()
+
+    sd_keys_hf = sd_hf.keys()
+    sd_keys_hf = [k for k in sd_keys_hf if not k.endswith('.attn.masked_bias')]
+    sd_keys_hf = [k for k in sd_keys_hf if not k.endswith('.attn.bias')]
+    transposed = ['attn.c_attn.weight', 'attn.c_proj.weight', 'mlp.c_fc.weight', 'mlp.c_proj.weight']
+
+    assert len(sd_keys_hf) == len(sd_keys), f"mismatched keys: {len(sd_keys_hf)} != {len(sd_keys)}"
+    for k in sd_keys_hf:
+        if any(k.endswith(w) for w in transposed):
+            # special treatment for the Conv1D weights we need to transpose
+            assert sd_hf[k].shape[::-1] == sd[k].shape
+            with torch.no_grad():
+                sd[k].copy_(sd_hf[k].t())
+        else:
+            # vanilla copy over the other parameters
+            assert sd_hf[k].shape == sd[k].shape
+            with torch.no_grad():
+                sd[k].copy_(sd_hf[k])
+
     enc = tiktoken.get_encoding('gpt2')
+
+    # Dump layers locally for server to find
+    layers_to_save = []
+    for i in range(config.n_layer - 1, config.n_layer - 1 - layers_to_offload, -1):
+        layers_to_save.extend([
+            f'transformer.h.{i}.ln_1.weight',
+            f'transformer.h.{i}.ln_1.bias',
+            f'transformer.h.{i}.attn.c_attn.weight',
+            f'transformer.h.{i}.attn.c_attn.bias',
+            f'transformer.h.{i}.attn.c_proj.weight',
+            f'transformer.h.{i}.attn.c_proj.bias',
+            f'transformer.h.{i}.ln_2.weight',
+            f'transformer.h.{i}.ln_2.bias',
+            f'transformer.h.{i}.mlp.c_fc.weight',
+            f'transformer.h.{i}.mlp.c_fc.bias',
+            f'transformer.h.{i}.mlp.c_proj.weight',
+            f'transformer.h.{i}.mlp.c_proj.bias',
+        ])
+
+    import itertools
+    import struct
+    import os
+
+    for key, tensor in sd_hf.items():
+        # Convert to numpy array and then to list
+        if key in layers_to_save:
+            weights = tensor.cpu().detach().numpy().tolist()
+            try:
+                flattened = list(itertools.chain(*weights))
+            except:
+                flattened = weights
+            filename = f'./ml-assets/{model_type}/{key}.weights'
+
+            if os.path.exists(filename):
+                continue
+
+            with open(filename, 'wb') as f:
+                f.write(struct.pack('%sf' % len(flattened), *flattened))
 
     return model, sd, enc, config.__dict__
 
@@ -121,9 +180,12 @@ class GPT(nn.Module):
             h = nn.ModuleList([Block(config) for _ in range(config.n_layer)]),
             ln_f = nn.LayerNorm(config.n_embd)
         ))
+
+        # TODO: Turning off to mimic model with no LM head.
+        #   Getting a wte shape issue with GPT2Model class directly from HF, fix later
         self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False)
 
-    def forward(self, idx, till_layer=3):
+    def forward(self, idx, till_layer):
         B, T = idx.size()
         assert T <= self.config.block_size, "Cannot forward, model block size is exhausted."
 
@@ -137,9 +199,12 @@ class GPT(nn.Module):
 
         self.dump_partial_state(x)
 
-        x = self.transformer.ln_f(x)
-        logits = self.lm_head(x)
-        return logits
+        for block in self.transformer.h[till_layer:]:
+            x = block(x)
+
+        # TODO: shouldn't be off
+        # x = self.transformer.ln_f(x)
+        return x
 
     def dump_partial_state(self, x):
         with open(f'./ml-assets/{self.model_type}/partial_state.bin', 'wb') as f:
@@ -151,3 +216,6 @@ class GPT(nn.Module):
             to_write = list(itertools.chain(*to_write))
             to_write = list(itertools.chain(*to_write))
             f.write(struct.pack('%sf' % len(to_write), *to_write))
+
+        with open(f'./ml-assets/{self.model_type}/partial_state_metadata.txt', 'w') as f:
+            f.write(str(list(x.shape)))

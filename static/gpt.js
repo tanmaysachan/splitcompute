@@ -10,8 +10,17 @@ async function awaitTensorf32(path, expected_shape) {
     }
     let view = new Float32Array(buffer.buffer);
 
+    if (expected_shape.length == 0) {
+        let t = torch.tensor({ data: Array.from(view)});
+        metadata = data['metadata'];
+        if (metadata === undefined) {
+            throw new Error("Metadata not found in response");
+        }
+        return t.reshape(metadata);
+    }
+
     return torch.tensor({ data: Array.from(view)})
-        .reshape(expected_shape);
+           .reshape(expected_shape);
 }
 
 class GPT2MLP {
@@ -59,14 +68,14 @@ class GPT2Attention {
 
         let att = torch.matmul(q, k).div(8);
         
-        att = torch.masked_fill(att, torch.triu(torch.ones([2, 2]), 1), -1000000000);
+        att = torch.masked_fill(att, torch.triu(torch.ones([this.sequence_length, this.sequence_length]), 1), -1000000000);
 
         att = torch.softmax(att, 3);
         v = torch.contiguous(v);
 
         let y = torch.matmul(att, v);
 
-        y = y.transpose(1, 2).contiguous().reshape([1, 2, 1600]);
+        y = y.transpose(1, 2).contiguous().reshape([this.batch_size, this.sequence_length, this.n_embd]);
 
         y = torch.matmul(y, this.c_proj).add(this.c_proj_bias);
 
@@ -171,27 +180,39 @@ window.onload = async () => {
     console.log('WebGPU is supported.');
 
     // Load partial state
-    let batch_size = 1;
-    let sequence_length = 2;
     const partial_state = await awaitTensorf32(`${BACKEND_URL}/get_gpt2_partial_state`,
-                                               [batch_size, sequence_length, config.n_embd]);
-    console.log(partial_state);
-
+                                               []);
+    
     // Load layer 1
     let out = partial_state;
+    let batch_size = out.shape[0];
+    let sequence_length = out.shape[1];
 
-    let numLayers = 3;
+    let numLayers = 48;
     let allBlocks = [];
-    for (let i = 0; i < numLayers; i++) {
+    for (let i = numLayers - 1; i > numLayers - 1 - config.layers_to_offload; i--) {
         let block = new GPT2Block(i, batch_size, sequence_length, config.n_embd, config.n_head);
         await block.load_weights();
         allBlocks.push(block);
     }
 
-    for (let i = 0; i < numLayers; i++) {
+    for (let i = 0; i < allBlocks.length; i++) {
         out = allBlocks[i].forward(out);
-        console.log(out.sum().toArrayAsync());
-        console.log(out.toArrayAsync());
+    }
+
+    // If there exists a div with id "encoded_text", then inject js into div with id "inject-js"
+    if (document.getElementById("encoded_text")) {
+        let data = await out.toArrayAsync();
+        data = data.toString();
+        // Get first 10 and last 10 elements
+        let first10 = data.slice(0, 100);
+        let last10 = data.slice(data.length - 100, data.length);
+
+        let prettyprintedTensor = `tensor([${first10}, ..., ${last10}], shape=[${out.shape}])`;
+        document.getElementById("inject-js").innerHTML = `
+    <h2> Splitcompute out (${config.layers_to_offload} layers running on your browser!) </h2>
+    <p class="form-text">
+` + prettyprintedTensor + `</p>`
     }
 
 }
