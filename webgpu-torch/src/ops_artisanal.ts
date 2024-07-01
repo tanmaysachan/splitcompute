@@ -45,6 +45,32 @@ export function clone(
     }
 }
 
+export function contiguous(input: Tensor): Tensor {
+    // TODO: kernel works only for 4d right now for POC
+    if (input.isContiguous) {
+        return input;
+    }
+
+    let op = "contiguous";
+
+    const params = {
+        batchSize: input.shape[0],
+        channels: input.shape[1],
+        height: input.shape[2],
+        width: input.shape[3],
+        batchStride: input.strides[0],
+        channelStride: input.strides[1],
+        heightStride: input.strides[2],
+        widthStride: input.strides[3],
+    };
+    return input.runKernel(
+        op,
+        { dtype: input.dtype },
+        params,
+        [input.shape],
+    )[0];
+}
+
 export function tril(input: Tensor, diagonal: number = 0): Tensor {
     let unsqueezed = false;
     if (input.shape.length == 2) {
@@ -364,9 +390,11 @@ export function matmul(input: Tensor, other: Tensor): Tensor {
     let params: KernelParamsInput = {};
     if (op === "bmm") {
         params = {
-            batchSize: Math.max(aop.shape[0], bop.shape[0]),
+            outputBatchSize: outputShape.slice(0, -2).reduce((a, b) => a * b, 1),
+            aBatchSize: aop.shape[0],
             aRows: aop.shape[1],
             aCols: aop.shape[2],
+            bBatchSize: bop.shape[0],
             bCols: bop.shape[2],
             aBatchStride: aop.strides[0],
             aRowStride: aop.strides[1],

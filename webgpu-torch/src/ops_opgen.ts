@@ -845,6 +845,11 @@ export function reciprocal(input: Tensor): Tensor {
 export function relu(input: Tensor): Tensor {
     return unary(functions.ReluFunction, input);
 }
+/** GELU
+ */
+export function gelu(input: Tensor): Tensor {
+    return unary(functions.GeluFunction, input);
+}
 /**
 * ![Plot of round and its gradient](../../plots/round.svg)
 *

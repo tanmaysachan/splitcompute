@@ -460,6 +460,18 @@ export class Tensor extends TensorBase {
     transpose(dim1: number, dim2: number): Tensor {
         return aops.transpose(this, dim1, dim2);
     }
+    contiguous(): Tensor {
+        return aops.contiguous(this);
+    }
+    tril(k: number = 0): Tensor {
+        return aops.tril(this, k);
+    }
+    triu(k: number = 0): Tensor {
+        return aops.triu(this, k);
+    }
+    softmax(dim: number): Tensor {
+        return aops.softmax(this, dim);
+    }
     uniform_(lowerBound: number, upperBound: number): Tensor {
         const params = {
             size: shapeSize(this.shape),
@@ -2299,6 +2311,12 @@ export class Tensor extends TensorBase {
     */
     relu(): Tensor {
         return ops.relu(this);
+    }
+
+    /** GELU
+     */
+    gelu(): Tensor {
+        return ops.gelu(this);
     }
     /**
     * ![Plot of relu and its gradient](../../plots/relu.svg)

@@ -128,7 +128,7 @@ export class GPUBufferStorage extends UntypedStorage {
             this._byteSize = this._buffer.size;
             if (storageOffset !== undefined) {
                 this._byteOffset = storageOffset;
-                this._byteSize = this._buffer.size - storageOffset;
+                this._byteSize -= storageOffset;
             }
         } else if (input instanceof HeapBuffer) {
             this._buffer = input.heap.buffer;

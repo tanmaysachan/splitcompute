@@ -159,9 +159,9 @@ export function reshapeBatchedMatmul(tensor: StridedShape): StridedShape {
 
     const newShape = [batchSize].concat(inputShape.slice(inputShape.length - 2));
     const newStrides = [
-        inputStrides[inputStrides.length - 3],
-        inputStrides[inputStrides.length - 2],
-        inputStrides[inputStrides.length - 1],
+        inputStrides[inputShape.length - 3],
+        inputStrides[inputShape.length - 2],
+        inputStrides[inputShape.length - 1],
     ];
 
     return {

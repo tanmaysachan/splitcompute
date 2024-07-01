@@ -1,6 +1,90 @@
 import { KernelSpec } from "./kernel";
 
 export const kernels: { [name: string]: KernelSpec } = {
+    contiguous: {
+        name: "contiguous",
+        config: [
+            {
+                name: "dtype",
+            },
+        ],
+        parameters: [
+            {
+                name: "batchSize",
+                shaderType: "u32",
+            },
+            {
+                name: "channels",
+                shaderType: "u32",
+            },
+            {
+                name: "height",
+                shaderType: "u32",
+            },
+            {
+                name: "width",
+                shaderType: "u32",
+            },
+            {
+                name: "batchStride",
+                shaderType: "u32",
+            },
+            {
+                name: "channelStride",
+                shaderType: "u32",
+            },
+            {
+                name: "heightStride",
+                shaderType: "u32",
+            },
+            {
+                name: "widthStride",
+                shaderType: "u32",
+            },
+        ],
+        inputs: [
+            {
+                name: "input",
+                shaderType: "array<f32>",
+            },
+        ],
+        outputs: [
+            {
+                name: "output",
+                shaderType: "array<f32>",
+                size: "batchSize * channels * height * width",
+            },
+        ],
+        workgroupSize: [8, 8, 4],
+        workgroupCount: ["height/8", "channels/8", "batchSize/4"],
+        shader: `
+    let outputBatch = global_id.z;
+    let outputChannel = global_id.y;
+    let outputHeight = global_id.x;
+
+    if (outputHeight >= parameters.height || outputChannel >= parameters.channels || outputBatch >= parameters.batchSize) {
+        return;
+    }
+
+    let outputBatchStride = parameters.channels * parameters.height * parameters.width;
+    let outputChannelStride = parameters.height * parameters.width;
+    let outputHeightStride = parameters.width;
+
+    for (var outputWidth = 0u; outputWidth < parameters.width; outputWidth = outputWidth + 1u) {
+        let inputIndex =
+            outputBatch * parameters.batchStride +
+            outputChannel * parameters.channelStride +
+            outputHeight * parameters.heightStride +
+            outputWidth * parameters.widthStride;
+        let outputIndex =
+            outputBatch * outputBatchStride +
+            outputChannel * outputChannelStride +
+            outputHeight * outputHeightStride +
+            outputWidth;
+        output[outputIndex] = input[inputIndex];
+    }
+`
+    },
     softmax: {
         name: "softmax",
         config: [
@@ -616,7 +700,11 @@ export const kernels: { [name: string]: KernelSpec } = {
         ],
         parameters: [
             {
-                name: "batchSize",
+                name: "outputBatchSize",
+                shaderType: "u32",
+            },
+            {
+                name: "aBatchSize",
                 shaderType: "u32",
             },
             {
@@ -625,6 +713,10 @@ export const kernels: { [name: string]: KernelSpec } = {
             },
             {
                 name: "aCols",
+                shaderType: "u32",
+            },
+            {
+                name: "bBatchSize",
                 shaderType: "u32",
             },
             {
@@ -674,21 +766,21 @@ export const kernels: { [name: string]: KernelSpec } = {
             {
                 name: "output",
                 shaderType: "array<f32>",
-                size: "batchSize * aRows * bCols",
+                size: "outputBatchSize * aRows * bCols",
             },
         ],
         workgroupSize: [8, 8, 4],
-        workgroupCount: ["aRows/8", "bCols/8", "batchSize/4"],
+        workgroupCount: ["aRows/8", "bCols/8", "outputBatchSize/4"],
         shader: `
     let outputRow = global_id.x;
     let outputCol = global_id.y;
     let outputBatch = global_id.z;
-    if (outputRow >= parameters.aRows || outputCol >= parameters.bCols || outputBatch >= parameters.batchSize) {
+    if (outputRow >= parameters.aRows || outputCol >= parameters.bCols || outputBatch >= parameters.outputBatchSize) {
         return;
     }
     var result = 0.0;
-    var aIndex = outputBatch * parameters.aBatchStride + outputRow * parameters.aRowStride;
-    var bIndex = outputBatch * parameters.bBatchStride + outputCol * parameters.bColStride;
+    var aIndex = (outputBatch % parameters.aBatchSize) * parameters.aBatchStride + outputRow * parameters.aRowStride;
+    var bIndex = (outputBatch % parameters.bBatchSize) * parameters.bBatchStride + outputCol * parameters.bColStride;
     for (var aCol = 0u; aCol < parameters.aCols; aCol = aCol + 1u) {
         result = result + a[aIndex] * b[bIndex];
         aIndex = aIndex + parameters.aColStride;
