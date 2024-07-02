@@ -16,7 +16,7 @@ but this project aims to bridge the gap by only transferring a subset of the wei
 
 Example: For GPT2-XL, a 1.5B model, we can transfer the last 1-2 layers amounting to less than
 100 MB in disk space, which can then be processed on the edge, freeing up the cloud GPU.
-At scale, this affect can likely compound.
+At scale, this effect can likely compound.
 
 ### How?
 
@@ -27,3 +27,10 @@ processed by the edge.
 ### Limitations
 
 Can't perform autoregressive decoding yet. Useful for generating embeddings.
+
+
+### Demo
+
+Run with `python server.py` (might need to adjust BACKEND_URL in `static/gpt.js` to refer to the running server URL)
+
+![App](static/app_shot.png)
