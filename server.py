@@ -7,7 +7,7 @@ app = Flask(__name__)
 
 model_type = 'gpt2-xl'
 model, sd, enc, config = load_gpt2_model(model_type)
-layers_to_offload = 1
+layers_to_offload = 3
 config['layers_to_offload'] = layers_to_offload
 
 def encode_text(text):

@@ -198,6 +198,7 @@ window.onload = async () => {
 
     for (let i = 0; i < allBlocks.length; i++) {
         out = allBlocks[i].forward(out);
+        console.log(out.toArrayAsync())
     }
 
     // If there exists a div with id "encoded_text", then inject js into div with id "inject-js"
@@ -210,7 +211,7 @@ window.onload = async () => {
 
         let prettyprintedTensor = `tensor([${first10}, ..., ${last10}], shape=[${out.shape}])`;
         document.getElementById("inject-js").innerHTML = `
-    <h2> Splitcompute out (${config.layers_to_offload} layers running on your browser!) </h2>
+    <h2> Splitcompute Out (${config.layers_to_offload} layer(s) running on your browser!): </h2>
     <p class="form-text">
 ` + prettyprintedTensor + `</p>`
     }

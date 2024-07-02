@@ -90,16 +90,17 @@ def load_gpt2_model(model_type='gpt2', layers_to_offload=3):
     for key, tensor in sd_hf.items():
         # Convert to numpy array and then to list
         if key in layers_to_save:
-            weights = tensor.cpu().detach().numpy().tolist()
-            try:
-                flattened = list(itertools.chain(*weights))
-            except:
-                flattened = weights
             filename = f'./ml-assets/{model_type}/{key}.weights'
 
             if os.path.exists(filename):
                 continue
 
+            weights = tensor.cpu().detach().numpy().tolist()
+
+            try:
+                flattened = list(itertools.chain(*weights))
+            except:
+                flattened = weights
             with open(filename, 'wb') as f:
                 f.write(struct.pack('%sf' % len(flattened), *flattened))
 

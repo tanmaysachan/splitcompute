@@ -271,8 +271,8 @@ export const registry: AnOpSpec[] = [
         nnName: "GELU",
         nnOp: true,
         type: "unary",
-        forward: "output = 0.5 * input * (1.0 + tanh(0.7978845608028654 * (input + 0.044715 * input * input * input)))",
-        backward: "var x = 0.035677408136300125 * input * input * input; var y = 1.0 + tanh(0.7978845608028654 * (input + x)); inputGrad = 0.5 * outputGrad * y * (1.0 + x * (1.0 - y * y))",
+        forward: "var sig = 0.5 + 0.5 * erf(input * 0.7071067811865476); output = input * sig",
+        // backward: "var x = 0.035677408136300125 * input * input * input; var y = 1.0 + tanh(0.7978845608028654 * (input + x)); inputGrad = 0.5 * outputGrad * y * (1.0 + x * (1.0 - y * y))",
     },
     // remainder: meh
     {
