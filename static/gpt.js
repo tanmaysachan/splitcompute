@@ -172,6 +172,7 @@ class GPT2Block {
 }
 
 window.onload = async () => {
+    let time_start = performance.now();
     let resp = await fetch(BACKEND_URL + "/get_gpt2_metadata");
     let config = await resp.json();
 
@@ -199,6 +200,7 @@ window.onload = async () => {
 
     allBlocks.reverse();
 
+    let time_processing = performance.now();
     for (let i = 0; i < allBlocks.length; i++) {
         out = allBlocks[i].forward(out);
     }
@@ -214,6 +216,10 @@ window.onload = async () => {
         let prettyprintedTensor = `tensor([${first10}, ..., ${last10}], shape=[${out.shape}])`;
         document.getElementById("inject-js").innerHTML = `
     <h2> Splitcompute Out (${config.layers_to_offload} layer(s) running on your browser!): </h2>
+    <p class="form-text" style="background-color:Tomato;">
+    <b>Time taken for loading: </b> ${time_processing - time_start} ms <br>
+    <b>Time taken for processing: </b> ${performance.now() - time_processing} ms <br>
+    <b>Time taken for total: </b> ${performance.now() - time_start} ms <br>
     <p class="form-text">
 ` + prettyprintedTensor + `</p>`
     }

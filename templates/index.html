@@ -19,6 +19,13 @@
         <h1 class="mb-4">GPT-2 Splitcompute Toy</h1>
         <form action="/" method="post">
             <div class="mb-3">
+                <!-- Dropdown to choose number of layers to run offline, then pass to flask -->
+                <label for="offline_layers" class="form-label">Number of layers to run offline:</label>
+                <select id="offline_layers" name="offline_layers">
+                    {% for i in range(1, 13) %}
+                    <option value="{{ i }}" default>{{ i }}</option>
+                    {% endfor %}
+                </select><br>
                 <label for="input_text" class="form-label">Enter your text:</label>
                 <textarea id="input_text" name="input_text" class="form-control" rows="4">{{ input_text }}</textarea>
             </div>
