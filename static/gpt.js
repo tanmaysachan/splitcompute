@@ -163,9 +163,10 @@ class GPT2Block {
 
         var x_ = ln_1.forward(x);
         var attn_out = attn.forward(x_);
-        var x = x.add(attn_out);
-        var x_ = ln_2.forward(x);
-        var x = mlp.forward(x_).add(x);
+        x = x.add(attn_out);
+        x_ = ln_2.forward(x);
+        var mlp_out = mlp.forward(x_);
+        x = x.add(mlp_out);
         return x;
     }
 }
@@ -196,9 +197,10 @@ window.onload = async () => {
         allBlocks.push(block);
     }
 
+    allBlocks.reverse();
+
     for (let i = 0; i < allBlocks.length; i++) {
         out = allBlocks[i].forward(out);
-        console.log(out.toArrayAsync())
     }
 
     // If there exists a div with id "encoded_text", then inject js into div with id "inject-js"

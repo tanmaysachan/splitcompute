@@ -7,12 +7,12 @@ app = Flask(__name__)
 
 model_type = 'gpt2-xl'
 model, sd, enc, config = load_gpt2_model(model_type)
-layers_to_offload = 3
+layers_to_offload = 2
 config['layers_to_offload'] = layers_to_offload
 
 def encode_text(text):
     tokens = process_input_text(text, enc)
-    logits = partial_forward(model, tokens, till_layer=config['n_layer'] - layers_to_offload)
+    logits = partial_forward(model, tokens, till_layer=config['n_layer'] - config['layers_to_offload'])
     return logits
 
 @app.route('/', methods=['GET', 'POST'])

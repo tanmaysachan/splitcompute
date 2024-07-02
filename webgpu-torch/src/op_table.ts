@@ -271,8 +271,8 @@ export const registry: AnOpSpec[] = [
         nnName: "GELU",
         nnOp: true,
         type: "unary",
-        forward: "var sig = 0.5 + 0.5 * erf(input * 0.7071067811865476); output = input * sig",
-        // backward: "var x = 0.035677408136300125 * input * input * input; var y = 1.0 + tanh(0.7978845608028654 * (input + x)); inputGrad = 0.5 * outputGrad * y * (1.0 + x * (1.0 - y * y))",
+        // Tanh approximation with clipping for explosion
+        forward: "var mid = 0.797884 * input + 0.797884 * 0.044715 * input * input * input; mid = min(mid, 20); mid = max(mid, -20); output = 0.5 * input * (1.0 + tanh(mid))"
     },
     // remainder: meh
     {
