@@ -1,6 +1,6 @@
 # SplitCompute [POC]
 
-![Diagram](static/splitcompute.png)
+![Diagram](static/images/splitcompute.png)
 
 Extension of @praeclarum's work on webgpu-torch, to provide functionality
 for running partial models on the Edge (and rest on the cloud).
@@ -35,4 +35,4 @@ Can't perform autoregressive decoding yet. Useful for generating embeddings.
 
 Run with `python server.py` (might need to adjust BACKEND_URL in `static/gpt.js` to refer to the running server URL)
 
-![App](static/app_shot.png)
+![App](static/images/app_shot.png)
