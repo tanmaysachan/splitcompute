@@ -30,6 +30,18 @@ processed by the edge.
 
 Can't perform autoregressive decoding yet. Useful for generating embeddings.
 
+### Guide
+
+1. The `webgpu-torch` directory contains the library orchestrating the tensor compute on the browser. It is built using typescript,
+and containes a compiler to convert tensor operations to WebGPU shaders.  
+`cd webgpu-torch` and use `npx webpack` to build the library, and copy over
+`webgpu-torch/dist/torch.js` (which is the compiled JS lib) to the `static` folder, from where
+it can be picked up by the frontend JS.
+
+2. The `server.py` file contains the Flask server which acts as a dummy backend, and provides routes for supplying weights.
+
+3. The `static` folder contains the model file `gpt.js` that describes how computations happen inside GPT-2, and uses
+the `webgpu-torch` library to perform the computations. It is also responsible for the API calls to load the weights.
 
 ### Demo
 
