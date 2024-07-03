@@ -1,4 +1,4 @@
-# SplitCompute [POC]
+# SplitCompute
 
 ![Diagram](static/images/splitcompute.png)
 
