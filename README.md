@@ -40,6 +40,9 @@ it can be picked up by the frontend JS.
 
 2. The `server.py` file contains the Flask server which acts as a dummy backend, and provides routes for supplying weights.
 
+3. The `load_ml_assets_gpt2.py` file contains the code to load the GPT-2 model weights by copying them over from huggingface.
+It contains functionality to partially execute and dump model state, which can then be forwarded to the edge.
+
 3. The `static` folder contains the model file `gpt.js` that describes how computations happen inside GPT-2, and uses
 the `webgpu-torch` library to perform the computations. It is also responsible for the API calls to load the weights.
 
