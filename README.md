@@ -1,5 +1,7 @@
 # SplitCompute [POC]
 
+![Diagram](static/splitcompute.png)
+
 Extension of @praeclarum's work on webgpu-torch, to provide functionality
 for running partial models on the Edge (and rest on the cloud).
 
