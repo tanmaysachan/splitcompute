@@ -32,7 +32,7 @@ Can't perform autoregressive decoding yet. Useful for generating embeddings.
 
 ### Benchmarks
 
-Loading weights is a one time op (indexeddb -> local).
+Loading weights into the browser is a one time operation.
 
 | Laptop     | Inference Time (/layer) | Loading Weights (/layer) |
 | ---------- | ------ | ---------------------- |
