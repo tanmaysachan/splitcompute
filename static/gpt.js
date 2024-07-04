@@ -41,19 +41,17 @@ class GPT2MLP {
 }
 
 class GPT2Attention {
-    constructor(c_attn, c_attn_bias, c_proj, c_proj_bias, batch_size, sequence_length, n_embd, n_head) {
+    constructor(c_attn, c_attn_bias, c_proj, c_proj_bias, n_embd, n_head) {
         this.c_attn = c_attn;
         this.c_attn_bias = c_attn_bias;
         this.c_proj = c_proj;
         this.c_proj_bias = c_proj_bias;
 
-        this.batch_size = batch_size;
-        this.sequence_length = sequence_length;
         this.n_embd = n_embd;
         this.n_head = n_head;
     }
 
-    forward(x) {
+    forward(x, b, t) {
         let qkv = torch.matmul(x, this.c_attn).add(this.c_attn_bias);
         
         let qkvs = torch.split(qkv, this.n_embd, 2);
@@ -63,20 +61,20 @@ class GPT2Attention {
         let v = qkvs[2];
         
         // Real torch is likely doing implicit contiguous here
-        k = k.reshape([this.batch_size, this.sequence_length, this.n_head, this.n_embd / this.n_head]).transpose(1, 2).transpose(2, 3).contiguous();
-        q = q.reshape([this.batch_size, this.sequence_length, this.n_head, this.n_embd / this.n_head]).transpose(1, 2).contiguous();
-        v = v.reshape([this.batch_size, this.sequence_length, this.n_head, this.n_embd / this.n_head]).transpose(1, 2).contiguous();
+        k = k.reshape([b, t, this.n_head, this.n_embd / this.n_head]).transpose(1, 2).transpose(2, 3).contiguous();
+        q = q.reshape([b, t, this.n_head, this.n_embd / this.n_head]).transpose(1, 2).contiguous();
+        v = v.reshape([b, t, this.n_head, this.n_embd / this.n_head]).transpose(1, 2).contiguous();
 
         let att = torch.matmul(q, k).div(8);
         
-        att = torch.masked_fill(att, torch.triu(torch.ones([this.sequence_length, this.sequence_length]), 1), -1000000000);
+        att = torch.masked_fill(att, torch.triu(torch.ones([t, t]), 1), -1000000000);
 
         att = torch.softmax(att, 3);
         v = torch.contiguous(v);
 
         let y = torch.matmul(att, v);
 
-        y = y.transpose(1, 2).contiguous().reshape([this.batch_size, this.sequence_length, this.n_embd]);
+        y = y.transpose(1, 2).contiguous().reshape([b, t, this.n_embd]);
 
         y = torch.matmul(y, this.c_proj).add(this.c_proj_bias);
 
@@ -99,10 +97,8 @@ class GPT2LayerNorm {
 }
 
 class GPT2Block {
-    constructor(layer_num, batch_size, sequence_length, n_embd, n_head) {
+    constructor(layer_num, n_embd, n_head) {
         this.layer_num = layer_num;
-        this.batch_size = batch_size;
-        this.sequence_length = sequence_length;
         this.n_embd = n_embd;
         this.n_head = n_head;
         this.layers_metadata = {
@@ -146,8 +142,6 @@ class GPT2Block {
                                      this.layer_weights[`transformer.h.${this.layer_num}.attn.c_attn.bias.weights`],
                                      this.layer_weights[`transformer.h.${this.layer_num}.attn.c_proj.weight.weights`],
                                      this.layer_weights[`transformer.h.${this.layer_num}.attn.c_proj.bias.weights`],
-                                     this.batch_size,
-                                     this.sequence_length,
                                      this.n_embd,
                                      this.n_head);
 
@@ -161,9 +155,9 @@ class GPT2Block {
                               this.layer_weights[`transformer.h.${this.layer_num}.mlp.c_proj.bias.weights`]);
     }
 
-    forward(x) {
+    forward(b, t, x) {
         var x_ = this.ln_1.forward(x);
-        var attn_out = this.attn.forward(x_);
+        var attn_out = this.attn.forward(x_, b, t);
         x = x.add(attn_out);
         x_ = this.ln_2.forward(x);
         var mlp_out = this.mlp.forward(x_);
@@ -173,11 +167,9 @@ class GPT2Block {
 }
 
 class GPT2AsyncLoader {
-    constructor(layer_start, layer_end, batch_size, sequence_length, n_embd, n_head) {
+    constructor(layer_start, layer_end, n_embd, n_head) {
         this.layer_start = layer_start;
         this.layer_end = layer_end;
-        this.batch_size = batch_size;
-        this.sequence_length = sequence_length;
         this.n_embd = n_embd;
         this.n_head = n_head;
 
@@ -187,7 +179,7 @@ class GPT2AsyncLoader {
 
     async start_loading() {
         for (let layer = this.layer_end; layer >= this.layer_start; layer--) {
-            let block = new GPT2Block(layer, this.batch_size, this.sequence_length, this.n_embd, this.n_head);
+            let block = new GPT2Block(layer, this.n_embd, this.n_head);
             await block.loadWeights();
             this.loaded_layers.unshift(block);
         }
@@ -197,7 +189,7 @@ class GPT2AsyncLoader {
         return this.loaded_layers.length;
     }
 
-    forward_from(x, layer) {
+    forward_from(b, t, x, layer) {
         if (layer < this.loaded_layers.at(0)) {
             throw new Error("Layer not loaded yet, or layer does not exist.");
         }
@@ -205,7 +197,7 @@ class GPT2AsyncLoader {
         let index = layer - this.layer_start;
 
         for (let i = index; i < this.loaded_layers.length; i++) {
-            x = this.loaded_layers[i].forward(x);
+            x = this.loaded_layers[i].forward(b, t, x);
         }
 
         return x;

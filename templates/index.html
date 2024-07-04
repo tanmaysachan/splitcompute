@@ -15,40 +15,16 @@
     <script src="{{url_for('static', filename='gpt.js')}}"></script>
     <script src="{{url_for('static', filename='runner.js')}}"></script>
 
-      <script src="https://code.jquery.com/jquery-3.5.1.js"
-          integrity="sha256-QWo7LDvxbWT2tbbQ97B53yJnYU3WhH/C8ycbRAkjPDc="
-          crossorigin="anonymous"></script>
+    <script src="https://code.jquery.com/jquery-3.5.1.js"
+      integrity="sha256-QWo7LDvxbWT2tbbQ97B53yJnYU3WhH/C8ycbRAkjPDc="
+      crossorigin="anonymous"></script>
  
-      <script type="text/javascript">
-        $(document).on('submit','#encode',function(e)
-        {
-          e.preventDefault();
-          $.ajax({
-            type:'POST',
-            url:'/',
-            data:{
-              offline_layers:$("#offline_layers").val(),
-              input_text:$("#input_text").val()
-            },
-            success:function(encoded_text)
-            {
-               $("#encoded_text").html(
-                   "<h2>Torch out (ground truth):</h2><p class=\"form-text\">" + encoded_text + "</p>"
-               );
-            
-               $("#inject-js").html(
-                   "Loading GPT-2's splitcompute output...<br>"
-               );
-               gpt2_runner(encoded_text);
-            }
-          })
-        });
-      </script>
+    <script src="{{url_for('static', filename='ajax.js')}}"></script>
 
 </head>
 <body>
     <div class="container">
-        <h1 class="mb-4">GPT-2 Splitcompute Toy</h1>
+        <h1 class="mb-4">GPT-2 Splitcompute Demo</h1>
         <form action="/" method="post" id="encode">
             <div class="mb-3">
                 <!-- Dropdown to choose number of layers to run offline, then pass to flask -->

@@ -1,3 +1,5 @@
+let loaderGlobal = undefined;
+
 async function gpt2_runner() {
 
     let time_start = performance.now();
@@ -24,13 +26,15 @@ async function gpt2_runner() {
 
     let layer_end = numLayers - 1;
 
-    let loader = new GPT2AsyncLoader(layer_start,
-                                     layer_end,
-                                     batch_size,
-                                     sequence_length,
-                                     config.n_embd,
-                                     config.n_head);
+    if (loaderGlobal === undefined) {
+        let loader = new GPT2AsyncLoader(layer_start,
+                                         layer_end,
+                                         config.n_embd,
+                                         config.n_head);
+        loaderGlobal = loader;
+    }
 
+    let loader = loaderGlobal;
 
     while (loader.layersLoaded() < config.layers_to_offload) {
         // Wait for some time
@@ -39,7 +43,7 @@ async function gpt2_runner() {
     }
 
     let time_processing = performance.now();
-    out = loader.forward_from(out, layer_start);
+    out = loader.forward_from(batch_size, sequence_length, out, layer_start);
 
     // If there exists a div with id "encoded_text", then inject js into div with id "inject-js"
     if (document.getElementById("encoded_text")) {
