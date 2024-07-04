@@ -11,6 +11,7 @@ async function awaitTensorf32(path, expected_shape) {
     let view = new Float32Array(buffer.buffer);
 
     if (expected_shape.length == 0) {
+        // Pass the shape as metadata, if it needs to be extracted from the response
         let t = torch.tensor({ data: Array.from(view)});
         metadata = data['metadata'];
         if (metadata === undefined) {
@@ -129,7 +130,7 @@ class GPT2Block {
         this.layer_weights = {};
     }
 
-    async load_weights() {
+    async loadWeights() {
         for (const [key, value] of Object.entries(this.layers_config)) {
             this.layer_weights[key] = await awaitTensorf32(
                 `${BACKEND_URL}/get_gpt2_weights/${key}`,
@@ -137,13 +138,11 @@ class GPT2Block {
             );
             console.log("Loaded weights for layer " + this.layer_num + " " + key);
         }
-    }
 
-    forward(x) {
-        var ln_1 = new GPT2LayerNorm(this.layer_weights[`transformer.h.${this.layer_num}.ln_1.weight.weights`],
+        this.ln_1 = new GPT2LayerNorm(this.layer_weights[`transformer.h.${this.layer_num}.ln_1.weight.weights`],
                                      this.layer_weights[`transformer.h.${this.layer_num}.ln_1.bias.weights`],
                                      this.n_embd);
-        var attn = new GPT2Attention(this.layer_weights[`transformer.h.${this.layer_num}.attn.c_attn.weight.weights`],
+        this.attn = new GPT2Attention(this.layer_weights[`transformer.h.${this.layer_num}.attn.c_attn.weight.weights`],
                                      this.layer_weights[`transformer.h.${this.layer_num}.attn.c_attn.bias.weights`],
                                      this.layer_weights[`transformer.h.${this.layer_num}.attn.c_proj.weight.weights`],
                                      this.layer_weights[`transformer.h.${this.layer_num}.attn.c_proj.bias.weights`],
@@ -152,76 +151,63 @@ class GPT2Block {
                                      this.n_embd,
                                      this.n_head);
 
-        var ln_2 = new GPT2LayerNorm(this.layer_weights[`transformer.h.${this.layer_num}.ln_2.weight.weights`],
+        this.ln_2 = new GPT2LayerNorm(this.layer_weights[`transformer.h.${this.layer_num}.ln_2.weight.weights`],
                                      this.layer_weights[`transformer.h.${this.layer_num}.ln_2.bias.weights`],
                                      this.n_embd);
 
-        var mlp = new GPT2MLP(this.layer_weights[`transformer.h.${this.layer_num}.mlp.c_fc.weight.weights`],
+        this.mlp = new GPT2MLP(this.layer_weights[`transformer.h.${this.layer_num}.mlp.c_fc.weight.weights`],
                               this.layer_weights[`transformer.h.${this.layer_num}.mlp.c_fc.bias.weights`],
                               this.layer_weights[`transformer.h.${this.layer_num}.mlp.c_proj.weight.weights`],
                               this.layer_weights[`transformer.h.${this.layer_num}.mlp.c_proj.bias.weights`]);
+    }
 
-        var x_ = ln_1.forward(x);
-        var attn_out = attn.forward(x_);
+    forward(x) {
+        var x_ = this.ln_1.forward(x);
+        var attn_out = this.attn.forward(x_);
         x = x.add(attn_out);
-        x_ = ln_2.forward(x);
-        var mlp_out = mlp.forward(x_);
+        x_ = this.ln_2.forward(x);
+        var mlp_out = this.mlp.forward(x_);
         x = x.add(mlp_out);
         return x;
     }
 }
 
-window.onload = async () => {
-    let time_start = performance.now();
-    let resp = await fetch(BACKEND_URL + "/get_gpt2_metadata");
-    let config = await resp.json();
+class GPT2AsyncLoader {
+    constructor(layer_start, layer_end, batch_size, sequence_length, n_embd, n_head) {
+        this.layer_start = layer_start;
+        this.layer_end = layer_end;
+        this.batch_size = batch_size;
+        this.sequence_length = sequence_length;
+        this.n_embd = n_embd;
+        this.n_head = n_head;
 
-    if (!await torch.initWebGPUAsync()) {
-        console.warn(`WebGPU is not supported.`);
-    }
-    console.log('WebGPU is supported.');
-
-    // Load partial state
-    const partial_state = await awaitTensorf32(`${BACKEND_URL}/get_gpt2_partial_state`,
-                                               []);
-    
-    // Load layer 1
-    let out = partial_state;
-    let batch_size = out.shape[0];
-    let sequence_length = out.shape[1];
-
-    let numLayers = 48;
-    let allBlocks = [];
-    for (let i = numLayers - 1; i > numLayers - 1 - config.layers_to_offload; i--) {
-        let block = new GPT2Block(i, batch_size, sequence_length, config.n_embd, config.n_head);
-        await block.load_weights();
-        allBlocks.push(block);
+        this.loaded_layers = [];
+        this.start_loading();
     }
 
-    allBlocks.reverse();
-
-    let time_processing = performance.now();
-    for (let i = 0; i < allBlocks.length; i++) {
-        out = allBlocks[i].forward(out);
+    async start_loading() {
+        for (let layer = this.layer_end; layer >= this.layer_start; layer--) {
+            let block = new GPT2Block(layer, this.batch_size, this.sequence_length, this.n_embd, this.n_head);
+            await block.loadWeights();
+            this.loaded_layers.unshift(block);
+        }
     }
 
-    // If there exists a div with id "encoded_text", then inject js into div with id "inject-js"
-    if (document.getElementById("encoded_text")) {
-        let data = await out.toArrayAsync();
-        data = data.toString();
-        // Get first 10 and last 10 elements
-        let first10 = data.slice(0, 100);
-        let last10 = data.slice(data.length - 100, data.length);
-
-        let prettyprintedTensor = `tensor([${first10}, ..., ${last10}], shape=[${out.shape}])`;
-        document.getElementById("inject-js").innerHTML = `
-    <h2> Splitcompute Out (${config.layers_to_offload} layer(s) running on your browser!): </h2>
-    <p class="form-text" style="background-color:Tomato;">
-    <b>Time taken for loading: </b> ${time_processing - time_start} ms <br>
-    <b>Time taken for processing: </b> ${performance.now() - time_processing} ms <br>
-    <b>Time taken for total: </b> ${performance.now() - time_start} ms <br>
-    <p class="form-text">
-` + prettyprintedTensor + `</p>`
+    layersLoaded() {
+        return this.loaded_layers.length;
     }
 
+    forward_from(x, layer) {
+        if (layer < this.loaded_layers.at(0)) {
+            throw new Error("Layer not loaded yet, or layer does not exist.");
+        }
+
+        let index = layer - this.layer_start;
+
+        for (let i = index; i < this.loaded_layers.length; i++) {
+            x = this.loaded_layers[i].forward(x);
+        }
+
+        return x;
+    }
 }

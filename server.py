@@ -21,19 +21,18 @@ def home():
     if request.method == 'POST':
         layers_to_offload = int(request.form['offline_layers'])
         config['layers_to_offload'] = layers_to_offload
-        print(request.form.keys())
         input_text = request.form['input_text']
         final_state = encode_text(input_text).cpu()
+
         # Printing final state for comparison
-        return render_template('index.html', input_text=input_text,
-                               encoded_text=final_state.__repr__() + ', shape=' + str(final_state.shape))
+        return final_state.__repr__() + ', shape=' + str(final_state.shape)
     return render_template('index.html', input_text='', encoded_text='')
 
 
-# Routes for serving model assets
+### Routes for serving model assets ###
 
 @app.route('/get_gpt2_metadata', methods=['GET'])
-def get_gpt2_assets():
+def get_gpt2_metadata():
     return config
 
 @app.route('/get_gpt2_weights/<layer>', methods=['GET'])
