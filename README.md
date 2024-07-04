@@ -30,6 +30,16 @@ processed by the edge.
 
 Can't perform autoregressive decoding yet. Useful for generating embeddings.
 
+### Benchmarks
+
+Loading weights is a one time op (indexeddb -> local).
+
+| Laptop     | Inference Time (/layer) | Loading Weights (/layer) |
+| ---------- | ------ | ---------------------- |
+| MBP M1-Pro | <60ms   | 2200ms                 |
+
+(TODO: More datapoints)
+
 ### Guide
 
 1. The `webgpu-torch` directory contains the library orchestrating the tensor compute on the browser. It is built using typescript,
