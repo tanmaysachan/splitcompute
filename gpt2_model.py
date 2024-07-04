@@ -14,6 +14,7 @@ class GPTConfig:
     n_head: int = 12
     n_embd: int = 768
 
+
 class CausalSelfAttention(nn.Module):
     def __init__(self, config):
         super().__init__()

@@ -1,28 +1,26 @@
 from flask import Flask, render_template, request
-from load_ml_assets_gpt2 import load_gpt2_model, process_input_text, partial_forward
+from gpt2_utils import load_gpt2_model, process_input_text
 import base64
 import ast
 
 app = Flask(__name__)
 
 model_type = 'gpt2-xl'
-model, sd, enc, config = load_gpt2_model(model_type)
+config = load_gpt2_model(model_type)
 
-# Default value
-config['layers_to_offload'] = 3
-
-def encode_text(text):
-    tokens = process_input_text(text, enc)
-    logits = partial_forward(model, tokens, till_layer=config['n_layer'] - config['layers_to_offload'])
-    return logits
 
 @app.route('/', methods=['GET', 'POST'])
 def home():
     if request.method == 'POST':
         layers_to_offload = int(request.form['offline_layers'])
+
+        global config
+        if (layers_to_offload > config['layers_to_offload']):
+            load_gpt2_model(model_type, layers_to_offload, copy_weights=False)
+
         config['layers_to_offload'] = layers_to_offload
         input_text = request.form['input_text']
-        final_state = encode_text(input_text).cpu()
+        final_state = process_input_text(input_text, till_layer=config['n_layer'] - config['layers_to_offload']).cpu()
 
         # Printing final state for comparison
         return final_state.__repr__() + ', shape=' + str(final_state.shape)
@@ -35,6 +33,7 @@ def home():
 def get_gpt2_metadata():
     return config
 
+
 @app.route('/get_gpt2_weights/<layer>', methods=['GET'])
 def get_gpt2_weights(layer):
     # Return layer num
@@ -42,6 +41,7 @@ def get_gpt2_weights(layer):
         layer = f.read()
         encoded_layer = base64.b64encode(layer).decode('utf-8')
     return {'layer': encoded_layer}
+
 
 @app.route('/get_gpt2_partial_state', methods=['GET'])
 def get_gpt2_partial_state():

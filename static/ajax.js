@@ -17,7 +17,8 @@ $(document).on('submit','#encode',function(e)
            $("#inject-js").html(
                "Loading GPT-2's splitcompute output...<br>"
            );
-           gpt2_runner(encoded_text);
+
+           gpt2_runner(parseInt($("#offline_layers").val()));
         }
     })
 });

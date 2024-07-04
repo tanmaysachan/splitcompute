@@ -1,6 +1,6 @@
 let loaderGlobal = undefined;
 
-async function gpt2_runner() {
+async function gpt2_runner(layers_to_offload) {
 
     let time_start = performance.now();
     let resp = await fetch(BACKEND_URL + "/get_gpt2_metadata");
@@ -22,11 +22,10 @@ async function gpt2_runner() {
 
     let numLayers = 48;
 
-    let layer_start = numLayers - 1 - config.layers_to_offload + 1;
-
+    let layer_start = numLayers - 1 - layers_to_offload + 1;
     let layer_end = numLayers - 1;
 
-    if (loaderGlobal === undefined) {
+    if (loaderGlobal === undefined || loaderGlobal.layer_start > layer_start) {
         let loader = new GPT2AsyncLoader(layer_start,
                                          layer_end,
                                          config.n_embd,
@@ -36,8 +35,7 @@ async function gpt2_runner() {
 
     let loader = loaderGlobal;
 
-    while (loader.layersLoaded() < config.layers_to_offload) {
-        // Wait for some time
+    while (loader.layersLoaded() < layers_to_offload) {
         console.log("Waiting for layers to load...");
         await new Promise(r => setTimeout(r, 1000));
     }
@@ -45,7 +43,6 @@ async function gpt2_runner() {
     let time_processing = performance.now();
     out = loader.forward_from(batch_size, sequence_length, out, layer_start);
 
-    // If there exists a div with id "encoded_text", then inject js into div with id "inject-js"
     if (document.getElementById("encoded_text")) {
         let data = await out.toArrayAsync();
         data = data.toString();
@@ -55,7 +52,7 @@ async function gpt2_runner() {
 
         let prettyprintedTensor = `tensor([${first10}, ..., ${last10}], shape=[${out.shape}])`;
         document.getElementById("inject-js").innerHTML = `
-    <h2> Splitcompute Out (${config.layers_to_offload} layer(s) running on your browser!): </h2>
+    <h2> Splitcompute Out (${layers_to_offload} layer(s) running on your browser!): </h2>
     <p class="form-text" style="background-color:Tomato;">
     <b>Time taken for loading weights (One-time op): </b> ${time_processing - time_start} ms <br>
     <b>Time taken for processing: </b> ${performance.now() - time_processing} ms <br>
