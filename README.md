@@ -5,7 +5,7 @@
 Extension of @praeclarum's work on webgpu-torch, to provide functionality
 for running partial models on the Edge (and rest on the cloud).
 
-Currently the sample-website includes code for execution of GPT-2,
+Currently the sample website includes code for execution of GPT-2,
 and takes as input a partially executed state of the model.
 
 ### Why?
@@ -32,28 +32,39 @@ Can't perform autoregressive decoding yet. Useful for generating embeddings.
 
 ### Benchmarks
 
-Loading weights into the browser is a one time operation.
+| Laptop     | Inference Time (s/layer) | Loading Weights (one-time s/layer) | Model |
+| ---------- | ------ | ---------------------- | ------ |
+| MBP M1-Pro | <40ms | 2200ms | GPT-2 XL |
 
-| Laptop     | Inference Time (/layer) | Loading Weights (/layer) |
-| ---------- | ------ | ---------------------- |
-| MBP M1-Pro | <60ms   | 2200ms                 |
-
-(TODO: More datapoints)
+(TODO: More datapoints, upcoming M1-Air, more models - BERT)
 
 ### Guide
 
+Splitcompute works by having a model's implementation in python for the backend and in javascript for the frontend.
+For GPT-2, the model is implemented in `gpt2_model.py` for backend execution and in `static/gpt.js` for frontend execution.
+
 1. The `webgpu-torch` directory contains the library orchestrating the tensor compute on the browser. It is built using typescript,
 and containes a compiler to convert tensor operations to WebGPU shaders.  
-`cd webgpu-torch` and use `npx webpack` to build the library, and copy over
-`webgpu-torch/dist/torch.js` (which is the compiled JS lib) to the `static` folder, from where
-it can be picked up by the frontend JS.
+
+To build `webgpu-torch`, and copy it over to the frontend for flask to serve, run:
+
+```bash
+cd webgpu-torch
+npx webpack
+cp dist/torch.js ../static/
+```
 
 2. The `server.py` file contains the Flask server which acts as a dummy backend, and provides routes for supplying weights.
 
-3. The `load_ml_assets_gpt2.py` file contains the code to load the GPT-2 model weights by copying them over from huggingface.
+```bash
+pip install -r requirements.txt
+python server.py
+```
+
+3. The `gpt2_utils.py` file contains the code to load the GPT-2 model weights by copying them over from huggingface.
 It contains functionality to partially execute and dump model state, which can then be forwarded to the edge.
 
-3. The `static` folder contains the model file `gpt.js` that describes how computations happen inside GPT-2, and uses
+4. The `static` folder contains the model file `gpt.js` that describes how computations happen inside GPT-2, and uses
 the `webgpu-torch` library to perform the computations. It is also responsible for the API calls to load the weights.
 
 ### Demo
