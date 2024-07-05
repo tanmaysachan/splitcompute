@@ -136,23 +136,23 @@ class GPT2Block {
         }
 
         this.ln_1 = new GPT2LayerNorm(this.layer_weights[`transformer.h.${this.layer_num}.ln_1.weight.weights`],
-                                     this.layer_weights[`transformer.h.${this.layer_num}.ln_1.bias.weights`],
-                                     this.n_embd);
+                                      this.layer_weights[`transformer.h.${this.layer_num}.ln_1.bias.weights`],
+                                      this.n_embd);
         this.attn = new GPT2Attention(this.layer_weights[`transformer.h.${this.layer_num}.attn.c_attn.weight.weights`],
-                                     this.layer_weights[`transformer.h.${this.layer_num}.attn.c_attn.bias.weights`],
-                                     this.layer_weights[`transformer.h.${this.layer_num}.attn.c_proj.weight.weights`],
-                                     this.layer_weights[`transformer.h.${this.layer_num}.attn.c_proj.bias.weights`],
-                                     this.n_embd,
-                                     this.n_head);
+                                      this.layer_weights[`transformer.h.${this.layer_num}.attn.c_attn.bias.weights`],
+                                      this.layer_weights[`transformer.h.${this.layer_num}.attn.c_proj.weight.weights`],
+                                      this.layer_weights[`transformer.h.${this.layer_num}.attn.c_proj.bias.weights`],
+                                      this.n_embd,
+                                      this.n_head);
 
         this.ln_2 = new GPT2LayerNorm(this.layer_weights[`transformer.h.${this.layer_num}.ln_2.weight.weights`],
-                                     this.layer_weights[`transformer.h.${this.layer_num}.ln_2.bias.weights`],
-                                     this.n_embd);
+                                      this.layer_weights[`transformer.h.${this.layer_num}.ln_2.bias.weights`],
+                                      this.n_embd);
 
         this.mlp = new GPT2MLP(this.layer_weights[`transformer.h.${this.layer_num}.mlp.c_fc.weight.weights`],
-                              this.layer_weights[`transformer.h.${this.layer_num}.mlp.c_fc.bias.weights`],
-                              this.layer_weights[`transformer.h.${this.layer_num}.mlp.c_proj.weight.weights`],
-                              this.layer_weights[`transformer.h.${this.layer_num}.mlp.c_proj.bias.weights`]);
+                               this.layer_weights[`transformer.h.${this.layer_num}.mlp.c_fc.bias.weights`],
+                               this.layer_weights[`transformer.h.${this.layer_num}.mlp.c_proj.weight.weights`],
+                               this.layer_weights[`transformer.h.${this.layer_num}.mlp.c_proj.bias.weights`]);
     }
 
     forward(b, t, x) {
@@ -185,15 +185,11 @@ class GPT2AsyncLoader {
         }
     }
 
-    layersLoaded() {
+    layers_loaded() {
         return this.loaded_layers.length;
     }
 
     forward_from(b, t, x, layer) {
-        if (layer < this.loaded_layers.at(0)) {
-            throw new Error("Layer not loaded yet, or layer does not exist.");
-        }
-
         let index = layer - this.layer_start;
 
         for (let i = index; i < this.loaded_layers.length; i++) {

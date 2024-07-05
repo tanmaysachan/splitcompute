@@ -26,6 +26,7 @@ async function gpt2_runner(layers_to_offload) {
     let layer_end = numLayers - 1;
 
     if (loaderGlobal === undefined || loaderGlobal.layer_start > layer_start) {
+        // TODO: can cache so much better, just dont reload from scratch everytime
         let loader = new GPT2AsyncLoader(layer_start,
                                          layer_end,
                                          config.n_embd,
@@ -35,7 +36,7 @@ async function gpt2_runner(layers_to_offload) {
 
     let loader = loaderGlobal;
 
-    while (loader.layersLoaded() < layers_to_offload) {
+    while (loader.layers_loaded() < layers_to_offload) {
         console.log("Waiting for layers to load...");
         await new Promise(r => setTimeout(r, 1000));
     }
