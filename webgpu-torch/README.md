@@ -1,3 +1,9 @@
+Fork of @tanmaysachan, extended with additional kernels.
+Checkout [@praeclarum](https://github.com/praeclarum) and his library!
+
+Following readme is from the original repository.
+
+------------------------------------
 # webgpu-torch
 
 Tensor computation and autograd with WebGPU acceleration inspired by pytorch.

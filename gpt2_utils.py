@@ -92,6 +92,12 @@ def load_gpt2_model(model_type='gpt2', layers_to_offload=3, copy_weights=True):
     import struct
     import os
 
+    print("Loading weights to a local folder...")
+
+    weights_dir = "./ml-assets"
+    if not os.path.exists(weights_dir):
+        os.makedirs(weights_dir)
+
     for key, tensor in SD.items():
         # Convert to numpy array and then to list
         if key in layers_to_save:

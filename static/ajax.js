@@ -1,3 +1,5 @@
+// Ajax for the form submission
+
 $(document).on('submit','#encode',function(e)
 {
     e.preventDefault();
@@ -18,7 +20,8 @@ $(document).on('submit','#encode',function(e)
                "Loading GPT-2's splitcompute output...<br>"
            );
 
-           gpt2_runner(parseInt($("#offline_layers").val()));
+           // Only gpt2 is supported for now
+           runner('gpt2', parseInt($("#offline_layers").val()));
         }
     })
 });

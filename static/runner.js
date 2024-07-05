@@ -1,7 +1,19 @@
 let loaderGlobal = undefined;
 
-async function gpt2_runner(layers_to_offload) {
+async function runner(model, layers_to_offload) {
+    if (model === "gpt2") {
+        gpt2_runner(layers_to_offload);
+        return;
+    }
+    
+    // Add more models here
 
+    throw new Error("Model not yet supported!");
+}
+
+
+async function gpt2_runner(layers_to_offload) {
+    // Just load the partial state and run
     let time_start = performance.now();
     let resp = await fetch(BACKEND_URL + "/get_gpt2_metadata");
     let config = await resp.json();
@@ -44,6 +56,7 @@ async function gpt2_runner(layers_to_offload) {
     let time_processing = performance.now();
     out = loader.forward_from(batch_size, sequence_length, out, layer_start);
 
+    // Code specific to the web interface
     if (document.getElementById("encoded_text")) {
         let data = await out.toArrayAsync();
         data = data.toString();

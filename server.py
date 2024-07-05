@@ -28,6 +28,7 @@ def home():
 
 
 ### Routes for serving model assets ###
+# runner.js's GPT-2 runner expects the following routes to be defined
 
 @app.route('/get_gpt2_metadata', methods=['GET'])
 def get_gpt2_metadata():

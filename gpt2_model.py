@@ -6,6 +6,7 @@ import math
 import torch.nn.functional as F
 import tiktoken
 
+
 @dataclass
 class GPTConfig:
     block_size: int = 1024
@@ -64,6 +65,7 @@ class MLP(nn.Module):
         x = self.c_proj(x)
         return x
 
+
 class Block(nn.Module):
     def __init__(self, config):
         super().__init__()
@@ -96,6 +98,11 @@ class GPT(nn.Module):
         self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False)
 
     def forward(self, idx, till_layer):
+        """
+        Custom implementation of forward should include a "till_layer" parameter,
+        to enable partial execution.
+        """
+
         B, T = idx.size()
         assert T <= self.config.block_size, "Cannot forward, model block size is exhausted."
 
@@ -117,6 +124,9 @@ class GPT(nn.Module):
         return x
 
     def dump_partial_state(self, x):
+        """
+        To be called from within the execution as a hook to dump partial state.
+        """
         with open(f'./ml-assets/{self.model_type}/partial_state.bin', 'wb') as f:
             to_write = x.cpu().detach().numpy().tolist()
             import struct
