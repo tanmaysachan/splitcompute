@@ -7,9 +7,9 @@ class GPT2MLP {
     }
 
     forward(x) {
-        let h = torch.matmul(x, this.c_fc).add(this.c_fc_bias);
+        let h = torch.matmul(x, this.c_fc.t()).add(this.c_fc_bias);
         h = torch.gelu(h);
-        h = torch.matmul(h, this.c_proj).add(this.c_proj_bias);
+        h = torch.matmul(h, this.c_proj.t()).add(this.c_proj_bias);
         return h;
     }
 }
@@ -26,21 +26,20 @@ class GPT2Attention {
     }
 
     forward(x, b, t) {
-        let qkv = torch.matmul(x, this.c_attn).add(this.c_attn_bias);
-        
+        let qkv = torch.matmul(x, this.c_attn.t()).add(this.c_attn_bias);
         let qkvs = torch.split(qkv, this.n_embd, 2);
 
         let q = qkvs[0];
         let k = qkvs[1];
         let v = qkvs[2];
-        
+
         // Real torch is likely doing implicit contiguous here
         k = k.reshape([b, t, this.n_head, this.n_embd / this.n_head]).transpose(1, 2).transpose(2, 3).contiguous();
         q = q.reshape([b, t, this.n_head, this.n_embd / this.n_head]).transpose(1, 2).contiguous();
         v = v.reshape([b, t, this.n_head, this.n_embd / this.n_head]).transpose(1, 2).contiguous();
 
-        let att = torch.matmul(q, k).div(8);
-        
+        let att = torch.matmul(q, k).div(Math.sqrt(this.n_embd / this.n_head));
+
         att = torch.masked_fill(att, torch.triu(torch.ones([t, t]), 1), -1000000000);
 
         att = torch.softmax(att, 3);
@@ -50,7 +49,7 @@ class GPT2Attention {
 
         y = y.transpose(1, 2).contiguous().reshape([b, t, this.n_embd]);
 
-        y = torch.matmul(y, this.c_proj).add(this.c_proj_bias);
+        y = torch.matmul(y, this.c_proj.t()).add(this.c_proj_bias);
 
         return y
     }
@@ -76,18 +75,18 @@ class GPT2Block {
         this.n_embd = n_embd;
         this.n_head = n_head;
         this.layers_metadata = {
-            'transformer.h.$.ln_1.weight.weights': [n_embd],
-            'transformer.h.$.ln_1.bias.weights': [n_embd],
-            'transformer.h.$.attn.c_attn.weight.weights': [n_embd, n_embd * 3],
-            'transformer.h.$.attn.c_attn.bias.weights': [n_embd * 3],
-            'transformer.h.$.attn.c_proj.weight.weights': [n_embd, n_embd],
-            'transformer.h.$.attn.c_proj.bias.weights': [n_embd],
-            'transformer.h.$.mlp.c_fc.weight.weights': [n_embd, n_embd * 4],
-            'transformer.h.$.mlp.c_fc.bias.weights': [n_embd * 4],
-            'transformer.h.$.mlp.c_proj.weight.weights': [n_embd * 4, n_embd],
-            'transformer.h.$.mlp.c_proj.bias.weights': [n_embd],
-            'transformer.h.$.ln_2.weight.weights': [n_embd],
-            'transformer.h.$.ln_2.bias.weights': [n_embd],
+            'transformer.h.$.ln_1.weight': [n_embd],
+            'transformer.h.$.ln_1.bias': [n_embd],
+            'transformer.h.$.attn.c_attn.weight': [n_embd * 3, n_embd ],
+            'transformer.h.$.attn.c_attn.bias': [n_embd * 3],
+            'transformer.h.$.attn.c_proj.weight': [n_embd, n_embd],
+            'transformer.h.$.attn.c_proj.bias': [n_embd],
+            'transformer.h.$.mlp.c_fc.weight': [n_embd * 4, n_embd],
+            'transformer.h.$.mlp.c_fc.bias': [n_embd * 4],
+            'transformer.h.$.mlp.c_proj.weight': [n_embd, n_embd * 4],
+            'transformer.h.$.mlp.c_proj.bias': [n_embd],
+            'transformer.h.$.ln_2.weight': [n_embd],
+            'transformer.h.$.ln_2.bias': [n_embd],
         };
 
         this.layers_config = {}
@@ -103,30 +102,30 @@ class GPT2Block {
     async loadWeights() {
         for (const [key, value] of Object.entries(this.layers_config)) {
             this.layer_weights[key] = await awaitTensorf32(
-                `${BACKEND_URL}/get_gpt2_weights/${key}`,
+                `${BACKEND_URL}/get_model_weights/${key}`,
                 value
             );
             console.log("Loaded weights for layer " + this.layer_num + " " + key);
         }
 
-        this.ln_1 = new GPT2LayerNorm(this.layer_weights[`transformer.h.${this.layer_num}.ln_1.weight.weights`],
-                                      this.layer_weights[`transformer.h.${this.layer_num}.ln_1.bias.weights`],
+        this.ln_1 = new GPT2LayerNorm(this.layer_weights[`transformer.h.${this.layer_num}.ln_1.weight`],
+                                      this.layer_weights[`transformer.h.${this.layer_num}.ln_1.bias`],
                                       this.n_embd);
-        this.attn = new GPT2Attention(this.layer_weights[`transformer.h.${this.layer_num}.attn.c_attn.weight.weights`],
-                                      this.layer_weights[`transformer.h.${this.layer_num}.attn.c_attn.bias.weights`],
-                                      this.layer_weights[`transformer.h.${this.layer_num}.attn.c_proj.weight.weights`],
-                                      this.layer_weights[`transformer.h.${this.layer_num}.attn.c_proj.bias.weights`],
+        this.attn = new GPT2Attention(this.layer_weights[`transformer.h.${this.layer_num}.attn.c_attn.weight`],
+                                      this.layer_weights[`transformer.h.${this.layer_num}.attn.c_attn.bias`],
+                                      this.layer_weights[`transformer.h.${this.layer_num}.attn.c_proj.weight`],
+                                      this.layer_weights[`transformer.h.${this.layer_num}.attn.c_proj.bias`],
                                       this.n_embd,
                                       this.n_head);
 
-        this.ln_2 = new GPT2LayerNorm(this.layer_weights[`transformer.h.${this.layer_num}.ln_2.weight.weights`],
-                                      this.layer_weights[`transformer.h.${this.layer_num}.ln_2.bias.weights`],
+        this.ln_2 = new GPT2LayerNorm(this.layer_weights[`transformer.h.${this.layer_num}.ln_2.weight`],
+                                      this.layer_weights[`transformer.h.${this.layer_num}.ln_2.bias`],
                                       this.n_embd);
 
-        this.mlp = new GPT2MLP(this.layer_weights[`transformer.h.${this.layer_num}.mlp.c_fc.weight.weights`],
-                               this.layer_weights[`transformer.h.${this.layer_num}.mlp.c_fc.bias.weights`],
-                               this.layer_weights[`transformer.h.${this.layer_num}.mlp.c_proj.weight.weights`],
-                               this.layer_weights[`transformer.h.${this.layer_num}.mlp.c_proj.bias.weights`]);
+        this.mlp = new GPT2MLP(this.layer_weights[`transformer.h.${this.layer_num}.mlp.c_fc.weight`],
+                               this.layer_weights[`transformer.h.${this.layer_num}.mlp.c_fc.bias`],
+                               this.layer_weights[`transformer.h.${this.layer_num}.mlp.c_proj.weight`],
+                               this.layer_weights[`transformer.h.${this.layer_num}.mlp.c_proj.bias`]);
     }
 
     forward(b, t, x) {

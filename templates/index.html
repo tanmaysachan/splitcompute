@@ -11,16 +11,15 @@
             margin-top: 20px;
         }
     </style>
-    <script src="{{url_for('static', filename='torch.js')}}"></script>
-    <script src="{{url_for('static', filename='model_loading_utils.js')}}"></script>
-    <script src="{{url_for('static', filename='gpt2.js')}}"></script>
-    <script src="{{url_for('static', filename='runner.js')}}"></script>
-
     <script src="https://code.jquery.com/jquery-3.5.1.js"
       integrity="sha256-QWo7LDvxbWT2tbbQ97B53yJnYU3WhH/C8ycbRAkjPDc="
       crossorigin="anonymous"></script>
  
-    <script src="{{url_for('static', filename='ajax.js')}}"></script>
+    <script src="{{url_for('static', filename='pako.js')}}"></script>
+    <script src="{{url_for('static', filename='torch.js')}}"></script>
+    <script src="{{url_for('static', filename='model_loading_utils.js')}}"></script>
+    <script src="{{url_for('static', filename='gpt2.js')}}"></script>
+    <script src="{{url_for('static', filename='runner.js')}}"></script>
 
 </head>
 <body>
@@ -31,7 +30,7 @@
                 <!-- Dropdown to choose number of layers to run offline, then pass to flask -->
                 <label for="offline_layers" class="form-label">Number of layers to run offline:</label>
                 <select id="offline_layers" name="offline_layers">
-                    {% for i in range(1, 13) %}
+                    {% for i in range(0, 13) %}
                     <option value="{{ i }}" default>{{ i }}</option>
                     {% endfor %}
                 </select><br>
@@ -40,8 +39,9 @@
             </div>
             <button type="submit" class="btn btn-primary">Encode</button>
         </form>
-        <div class="mt-4" id="encoded_text"></div>
-        <div class="mt-4" id="inject-js"></div>
+        <div class="mt-4" id="parity-check"></div>
+        <div class="mt-4" id="embedding"></div>
+        <div class="mt-4" id="benchmarking"></div>
     </div>
     <!-- Bootstrap Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>

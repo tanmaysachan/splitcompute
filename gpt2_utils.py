@@ -11,12 +11,30 @@ SD = None
 MODEL = None
 ENC = None
 
+def decode_token(logits):
+    logits = logits[:, -1, :]
+    probs = F.softmax(logits, dim=-1)
+    topk_prob, topk_indices = torch.topk(probs, 1, dim=-1)
+    ix = torch.multinomial(topk_prob, 1)
+    xcol = torch.gather(topk_indices, -1, ix)
+    xcol = xcol.view(-1).cpu().numpy().tolist()[0]
+    print('\n\n\n')
+    print(ENC.decode([xcol]))
+    print('\n\n\n')
+    return xcol
+    
 
-def process_input_text(text, till_layer):
+def process_input_text_front(text, till_layer):
     tokens = ENC.encode(text)
     tokens = torch.tensor(tokens, dtype=torch.long).unsqueeze(0)
     tokens = tokens.to('mps')
     full_fwd_out = MODEL.forward(tokens, till_layer=till_layer)
+    return full_fwd_out
+
+
+def process_input_text_end(partial_state, from_layer):
+    partial_state = partial_state.to('mps').reshape(1, -1, 1600)
+    full_fwd_out = MODEL.forward(partial_state, from_layer=from_layer)
     return full_fwd_out
 
 
@@ -119,3 +137,48 @@ def load_gpt2_model(model_type='gpt2', layers_to_offload=3, copy_weights=True):
     config['layers_to_offload'] = layers_to_offload
 
     return config
+
+
+def dump_weights_gpt2(model, layers_to_offload):
+    layer_names = []
+    for i in range(config.n_layer - 1, config.n_layer - 1 - layers_to_offload, -1):
+        layer_names.extend([
+            f'transformer.h.{i}.ln_1.weight',
+            f'transformer.h.{i}.ln_1.bias',
+            f'transformer.h.{i}.attn.c_attn.weight',
+            f'transformer.h.{i}.attn.c_attn.bias',
+            f'transformer.h.{i}.attn.c_proj.weight',
+            f'transformer.h.{i}.attn.c_proj.bias',
+            f'transformer.h.{i}.ln_2.weight',
+            f'transformer.h.{i}.ln_2.bias',
+            f'transformer.h.{i}.mlp.c_fc.weight',
+            f'transformer.h.{i}.mlp.c_fc.bias',
+            f'transformer.h.{i}.mlp.c_proj.weight',
+            f'transformer.h.{i}.mlp.c_proj.bias',
+        ])
+
+    import itertools
+    import struct
+    import os
+
+    print("Loading weights to a local folder...")
+
+    weights_dir = "./ml-assets"
+    if not os.path.exists(weights_dir):
+        os.makedirs(weights_dir)
+
+    for key, tensor in model.state_dict().items():
+        # Convert to numpy array and then to list
+        if key in layer_names:
+            filename = f'./ml-assets/{model_type}/{key}.weights'
+
+            if os.path.exists(filename):
+                continue
+
+            weights = tensor.cpu().detach().numpy().tolist()
+            try:
+                flattened = list(itertools.chain(*weights))
+            except:
+                flattened = weights
+            with open(filename, 'wb') as f:
+                f.write(struct.pack('%sf' % len(flattened), *flattened))

@@ -1,11 +1,11 @@
-from transformers import GPT2LMHeadModel, GPT2Config
 from dataclasses import dataclass
 import torch
 from torch import nn
 import math
 import torch.nn.functional as F
-import tiktoken
+from transformers import GPT2LMHeadModel
 
+DEBUG_STATE = None
 
 @dataclass
 class GPTConfig:
@@ -93,49 +93,71 @@ class GPT(nn.Module):
             ln_f = nn.LayerNorm(config.n_embd)
         ))
 
-        # TODO: Turning off to mimic model with no LM head.
-        #   Getting a wte shape issue with GPT2Model class directly from HF, fix later
         self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False)
 
-    def forward(self, idx, till_layer):
+        # Load model weights from huggingface
+        self.from_pretrained(model_type)
+
+        # Weight sharing
+        self.transformer.wte.weight = self.lm_head.weight
+
+    def forward(self, idx, till_layer=None, from_layer=None):
         """
-        Custom implementation of forward should include a "till_layer" parameter,
-        to enable partial execution.
+        Custom implementation of forward should include a "till_layer" and "from_layer"
+        parameter, to enable partial execution.
         """
+        
+        if from_layer:
+            B, T, H = idx.size()
+            x = idx
+            for block in self.transformer.h[from_layer:]:
+                x = block(x)
 
-        B, T = idx.size()
-        assert T <= self.config.block_size, "Cannot forward, model block size is exhausted."
+            x = self.transformer.ln_f(x)
+            x = self.lm_head(x)
+            return x
+        else:
+            B, T = idx.size()
+            assert T <= self.config.block_size, "Cannot forward, model block size is exhausted."
+            pos = torch.arange(0, T, dtype=torch.long, device=idx.device)
+            pos_emb = self.transformer.wpe(pos)
+            tok_emb = self.transformer.wte(idx)
+            x = tok_emb + pos_emb
 
-        pos = torch.arange(0, T, dtype=torch.long, device=idx.device)
-        pos_emb = self.transformer.wpe(pos)
-        tok_emb = self.transformer.wte(idx)
-        x = tok_emb + pos_emb
+            for block in self.transformer.h[:till_layer]:
+                x = block(x)
+            
+            x_ = x.clone()
+            for block in self.transformer.h[till_layer:]:
+                x_ = block(x_)
+            DEBUG_STATE = x_
 
-        for block in self.transformer.h[:till_layer]:
-            x = block(x)
+            return x
 
-        self.dump_partial_state(x)
+    def from_pretrained(self, model_type):
+        sd = self.state_dict()
 
-        for block in self.transformer.h[till_layer:]:
-            x = block(x)
+        sd_keys = sd.keys()
+        sd_keys = [k for k in sd_keys if not k.endswith('.attn.bias')] # discard this mask / buffer, not a param
 
-        # TODO: shouldn't be off
-        # x = self.transformer.ln_f(x)
-        return x
+        # Load model from HF for original weights
+        model_hf = GPT2LMHeadModel.from_pretrained(model_type)
+        sd_hf = model_hf.state_dict()
 
-    def dump_partial_state(self, x):
-        """
-        To be called from within the execution as a hook to dump partial state.
-        """
-        with open(f'./ml-assets/{self.model_type}/partial_state.bin', 'wb') as f:
-            to_write = x.cpu().detach().numpy().tolist()
-            import struct
-            import itertools
+        sd_keys_hf = sd_hf.keys()
+        sd_keys_hf = [k for k in sd_keys_hf if not k.endswith('.attn.masked_bias')]
+        sd_keys_hf = [k for k in sd_keys_hf if not k.endswith('.attn.bias')]
+        transposed = ['attn.c_attn.weight', 'attn.c_proj.weight', 'mlp.c_fc.weight', 'mlp.c_proj.weight']
 
-            # Pack into bytes
-            to_write = list(itertools.chain(*to_write))
-            to_write = list(itertools.chain(*to_write))
-            f.write(struct.pack('%sf' % len(to_write), *to_write))
-
-        with open(f'./ml-assets/{self.model_type}/partial_state_metadata.txt', 'w') as f:
-            f.write(str(list(x.shape)))
+        assert len(sd_keys_hf) == len(sd_keys), f"mismatched keys: {len(sd_keys_hf)} != {len(sd_keys)}"
+        for k in sd_keys_hf:
+            if any(k.endswith(w) for w in transposed):
+                # special treatment for the Conv1D weights we need to transpose
+                assert sd_hf[k].shape[::-1] == sd[k].shape
+                with torch.no_grad():
+                    sd[k].copy_(sd_hf[k].t())
+            else:
+                # vanilla copy over the other parameters
+                assert sd_hf[k].shape == sd[k].shape
+                with torch.no_grad():
+                    sd[k].copy_(sd_hf[k])
